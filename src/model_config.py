@@ -6,8 +6,36 @@ def add_to_parser(config_obj, parser):
 
 
 class ModelConfig(object):
+    # GO game configurations
     board_size = 19
     game_index_file = 'game_index.yaml'
+    tree_depth = 8
+    feature_channel = 17  # 2 * 8 + 1
+    game_record_row_index = -3
+    game_record_col_index = -2
+    game_record_player_index = -1
+    # hyper parameters for model
+    dense_layer_dim = 256
+    batch_size = 64
+    batch_size_inference = 64
+    # hyper parameters for training
+    training_epochs = 100
+    save_weight_on_best_train = True
+    lr_scheduler = 'clr_exp_range'
+    lr_reset_every_epochs = 10
+    lr_range = [1.0e-4, 1.0e-2]
+    lr_decay = 0.99
+    dropout_keep_prob = 0.9
+    early_stop = 100000
+    use_augmentation = False
+    model_name = 'SL'
+    print_n_per_epoch = 1000
+    # parameters to be set during training
+    iterations_per_epoch = 1
+    learner_log_dir = '/tmp/log_dir/'
+    weight_root = '/tmp/weights/'
+    allow_weight_init = True
+    dataset_path = '/tmp/go_games/'
 
     def __init__(self, **kwargs):
         if kwargs is not None:

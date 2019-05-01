@@ -6,8 +6,6 @@ from pathlib import Path
 from sgfmill import sgf
 from sgfmill import sgf_moves
 from sgfmill import ascii_boards
-import random
-import shutil
 import time
 from tqdm import tqdm
 import yaml
@@ -16,17 +14,6 @@ from game_record import GoGameRecord
 from model_config import ModelConfig
 
 logging_format = '%(asctime)s %(module)s:%(lineno)d %(funcName)s %(levelname)s %(message)s'
-
-
-def color_to_player(c):
-    if c is None:
-        return 0
-    _map_color_to_player = {
-        'b': -1,
-        'w': 1,
-    }
-    assert c in _map_color_to_player
-    return _map_color_to_player[c]
 
 
 def sgf2record():
@@ -40,6 +27,7 @@ def sgf2record():
     board_size = model_config.board_size
     num_saved = 0
     indices = []
+    record_size = GoGameRecord.record_size(model_config)
     for sgf_file in tqdm(sgf_files):
         with open(sgf_file, 'rb') as in_fd:
             sgf_src = in_fd.read()
@@ -54,17 +42,18 @@ def sgf2record():
             except ValueError as e:
                 logging.debug(f'fail to parse {sgf_file}: {e}')
                 continue
-            out_data = np.zeros((len(plays), board_size ** 2 + 3), dtype=np.int8)
+            out_data = np.zeros((len(plays), record_size), dtype=np.int8)
             valid_play = True
             for i, (colour, move) in enumerate(plays):
                 if move is None:
                     continue
                 # N * N are row x column  +
-                out_data[i, :board_size**2] = [color_to_player(c) for r in board.board for c in r]
+                out_data[i, :board_size**2] = [GoGameRecord.color_to_player(c)
+                                               for r in board.board for c in r]
                 row, col = move
-                out_data[i, -3] = row
-                out_data[i, -2] = col
-                out_data[i, -1] = color_to_player(colour)
+                out_data[i, model_config.game_record_row_index] = row
+                out_data[i, model_config.game_record_col_index] = col
+                out_data[i, model_config.game_record_player_index] = GoGameRecord.color_to_player(colour)
                 try:
                     board.play(row, col, colour)
                 except ValueError:
@@ -74,20 +63,21 @@ def sgf2record():
             if not valid_play:
                 continue
             out_file = out_path/f'{sgf_file.stem}.joblib'
-            record = GoGameRecord(out_data)
+            record = GoGameRecord(model_config, out_data)
             record.write_to_file(out_file)
             num_saved += 1
-            indices.append((str(sgf_file), len(plays)))
+            indices.append((str(out_file), len(plays)))
     index_file = out_path/model_config.game_index_file
     with open(index_file, 'w') as out_fd:
         yaml.dump(indices, out_fd)
-    print(f'successfully saved {num_saved} out of {len(sgf_files)} SGF files')
+    average_plays = sum(l for _, l in indices)/num_saved
+    print(f'successfully saved {num_saved} out of {len(sgf_files)} SGF files, {average_plays}')
 
 
 def show_record():
     game_file = Path(args.in_file)
     # show last step only
-    game_record = GoGameRecord.from_file(game_file)
+    game_record = GoGameRecord.from_file(config=ModelConfig(), in_file=game_file)
     game_record.render_result()
 
 
