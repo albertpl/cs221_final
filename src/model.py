@@ -3,7 +3,7 @@ from keras import models
 from keras import backend as K
 from keras.losses import sparse_categorical_crossentropy
 from keras.metrics import sparse_categorical_accuracy
-from keras.optimizers import Nadam
+from keras.optimizers import Nadam, Adam
 
 from model_config import ModelConfig
 from resnet import ResnetBuilder
@@ -28,7 +28,9 @@ def build_simple_model(config: ModelConfig):
     model.add(layers.Activation('relu'))
 
     model.add(layers.Flatten())
-    model.add(layers.Dropout(1.0 - config.dropout_keep_prob))
+    # model.add(layers.Dropout(1.0 - config.dropout_keep_prob))
+    model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
+    model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
     model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
     model.add(layers.Dense(num_action, activation='softmax'))
     return model
@@ -46,7 +48,7 @@ def build_resnet(config: ModelConfig):
 def create_model(config: ModelConfig):
     # model = build_resnet(config)
     model = build_simple_model(config)
-    model.compile(optimizer=Nadam(lr=1e-4),
+    model.compile(optimizer=Adam(lr=1e-4),
                   loss=sparse_categorical_crossentropy,
                   metrics=[sparse_categorical_accuracy, ])
     return model

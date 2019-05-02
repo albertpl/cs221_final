@@ -76,7 +76,7 @@ class Dataset(object):
             indices = yaml.load(in_fd)
             logging.info(f'loaded {index_file} in {time.time() - t0}')
             assert len(indices) > 0, index_file
-            for i, (file_name, ply_len) in enumerate(indices[:100]):
+            for i, (file_name, ply_len) in enumerate(indices):
                 dataset.filenames.append(file_name)
                 dataset.ply_indices += [(i, j) for j in range(ply_len)]
         print(f'loaded total games = {len(dataset.filenames)}, '

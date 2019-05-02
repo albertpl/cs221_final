@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pachi_py
 import pandas as pd
+from pathlib import Path
 import time
 from tqdm import tqdm
 
@@ -28,7 +29,7 @@ def create_agent(config: ModelConfig, env):
         raise ValueError(f'unsupported policy = {config.player_policy}')
 
 
-def evaluate_policy(config: ModelConfig, num_episode, print_board):
+def evaluate_policy(config: ModelConfig, num_episode, print_board, out_path):
     env = GoEnv(player_color='black', illegal_move_mode='raise', board_size=19)
     total_rewards, total_steps = [], []
     t0 = time.time()
@@ -55,11 +56,16 @@ def evaluate_policy(config: ModelConfig, num_episode, print_board):
         logging.info(f'[{i_episode}]: reward={total_reward}, step={t}')
     env.close()
     t1 = time.time()
-    rewards = pd.DataFrame(total_rewards)
-    steps = pd.DataFrame(total_steps)
+    rewards_pd = pd.DataFrame(total_rewards)
+    steps_pd = pd.DataFrame(total_steps)
+    if out_path:
+        out_path = Path(out_path)
+        out_path.mkdir(exist_ok=True, parents=True)
+        rewards_pd.to_csv(out_path/'rewards.csv')
+        steps_pd.to_csv(out_path/'steps.csv')
     print(f'total episode: {num_episode}, '
-          f'\naverage reward: {rewards.describe()}, '
-          f'\naverage time step: {steps.describe()}, '
+          f'\naverage reward: {rewards_pd.describe()}, '
+          f'\naverage time step: {steps_pd.describe()}, '
           f'\ntime: {(t1-t0)/num_episode:.1f}s per game, ')
     return total_rewards
 
@@ -68,7 +74,7 @@ def evaluate():
     num_episode = args.num_episode
     config = ModelConfig()
     config.player = pachi_py.BLACK
-    evaluate_policy(config, num_episode=num_episode, print_board=args.print_board)
+    evaluate_policy(config, num_episode=num_episode, print_board=args.print_board, out_path=args.out_path)
 
 
 if __name__ == '__main__':
@@ -80,6 +86,7 @@ if __name__ == '__main__':
     sub_parser = subparser.add_parser('eval')
     sub_parser.add_argument('--num_episode', type=int, default=1)
     sub_parser.add_argument('--print_board', type=int, default=0)
+    sub_parser.add_argument('--out_path')
     sub_parser.set_defaults(func=evaluate)
 
     args = parser.parse_args()

@@ -14,18 +14,20 @@ class ModelConfig(object):
     game_record_row_index = -3
     game_record_col_index = -2
     game_record_player_index = -1
+    player_policy = 'random'
+    max_time_step_per_episode = 1000
     # hyper parameters for model
     dense_layer_dim = 256
     batch_size = 64
     batch_size_inference = 64
     # hyper parameters for training
-    training_epochs = 100
+    training_epochs = 500
     save_weight_on_best_train = True
     lr_scheduler = 'clr_exp_range'
-    lr_reset_every_epochs = 10
-    lr_range = [1.0e-4, 1.0e-2]
+    lr_reset_every_epochs = 20
+    lr_range = [1.0e-4, 3.0e-3]
     lr_decay = 0.99
-    dropout_keep_prob = 0.9
+    dropout_keep_prob = 1.0
     early_stop = 100000
     use_augmentation = False
     model_name = 'SL'

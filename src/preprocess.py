@@ -22,7 +22,7 @@ def sgf2record():
     out_path = Path(args.out_root)
     out_path.mkdir(exist_ok=True, parents=True)
     assert sgf_path.exists()
-    sgf_files = [sgf_file for sgf_file in sgf_path.glob('./*.sgf')]
+    sgf_files = [sgf_file for sgf_file in sgf_path.glob('./**/*.sgf')]
     print(f'processing {len(sgf_files)} SGF files in {sgf_path}')
     board_size = model_config.board_size
     num_saved = 0
