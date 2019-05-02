@@ -10,6 +10,7 @@ from typing import Optional
 from tqdm import tqdm
 
 from dataset import Dataset, DatasetContainer, BatchInput, BatchOutput
+from environment import GoState
 from keras_callback_lr_scheduler import KerasCBLRScheduler
 from keras_callback_tf_summary import KerasCBSummaryWriter
 from model_config import ModelConfig
@@ -148,7 +149,6 @@ class KerasModelController(object):
         batch_out = BatchOutput()
         batch_out.result = self.model.predict_on_batch(batch_input.batch_xs)
         return batch_out
-
 
 
 

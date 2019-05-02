@@ -17,26 +17,27 @@ import six
 # use an action representation that does fall in this more natural range.
 
 
-def _pass_action(board_size):
+def pass_action(board_size):
     return board_size**2
 
 
-def _resign_action(board_size):
+def resign_action(board_size):
     return board_size**2 + 1
 
 
 def _coord_to_action(board, c):
     '''Converts Pachi coordinates to actions'''
-    if c == pachi_py.PASS_COORD: return _pass_action(board.size)
-    if c == pachi_py.RESIGN_COORD: return _resign_action(board.size)
+    if c == pachi_py.PASS_COORD: return pass_action(board.size)
+    if c == pachi_py.RESIGN_COORD: return resign_action(board.size)
     i, j = board.coord_to_ij(c)
-    return i*board.size + j
+    action = i*board.size + j
+    return action
 
 
-def _action_to_coord(board, a):
+def action_to_coord(board, a):
     '''Converts actions to Pachi coordinates'''
-    if a == _pass_action(board.size): return pachi_py.PASS_COORD
-    if a == _resign_action(board.size): return pachi_py.RESIGN_COORD
+    if a == pass_action(board.size): return pachi_py.PASS_COORD
+    if a == resign_action(board.size): return pachi_py.RESIGN_COORD
     return board.ij_to_coord(a // board.size, a % board.size)
 
 
@@ -67,7 +68,7 @@ class GoState(object):
             a new GoState with the new board and the player switched
         '''
         return GoState(
-            self.board.play(_action_to_coord(self.board, action), self.color),
+            self.board.play(action_to_coord(self.board, action), self.color),
             pachi_py.stone_other(self.color))
 
     def __repr__(self):
@@ -76,10 +77,11 @@ class GoState(object):
 
 ### Adversary policies ###
 def make_random_policy(np_random):
-    def random_policy(curr_state, prev_state, prev_action):
+    def random_policy(curr_state):
         b = curr_state.board
         legal_coords = b.get_legal_coords(curr_state.color)
-        return _coord_to_action(b, np_random.choice(legal_coords))
+        chosen_action = _coord_to_action(b, np_random.choice(legal_coords))
+        return chosen_action
     return random_policy
 
 
@@ -89,7 +91,7 @@ def make_pachi_policy(board, engine_type='uct', threads=1, pachi_timestr=''):
     def pachi_policy(curr_state, prev_state, prev_action):
         if prev_state is not None:
             assert engine.curr_board == prev_state.board, 'Engine internal board is inconsistent with provided board. The Pachi engine must be called consistently as the game progresses.'
-            prev_coord = _action_to_coord(prev_state.board, prev_action)
+            prev_coord = action_to_coord(prev_state.board, prev_action)
             engine.notify(prev_coord, prev_state.color)
             engine.curr_board.play_inplace(prev_coord, prev_state.color)
         out_coord = engine.genmove(curr_state.color, pachi_timestr)
@@ -217,7 +219,7 @@ class GoEnv(object):
             return self.state.board.encode(), 0., True, {'state': self.state}
 
         # If resigned, then we're done
-        if action == _resign_action(self.board_size):
+        if action == resign_action(self.board_size):
             self.done = True
             return self.state.board.encode(), -1., True, {'state': self.state}
 
@@ -263,7 +265,7 @@ class GoEnv(object):
     def _exec_opponent_play(self, curr_state, prev_state, prev_action):
         assert curr_state.color != self.player_color
         opponent_action = self.opponent_policy(curr_state, prev_state, prev_action)
-        opponent_resigned = opponent_action == _resign_action(self.board_size)
+        opponent_resigned = opponent_action == resign_action(self.board_size)
         return curr_state.act(opponent_action), opponent_resigned
 
     @property

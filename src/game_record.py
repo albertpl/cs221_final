@@ -60,8 +60,10 @@ class GoGameRecord(object):
     def action(self, ply_index):
         assert ply_index < len(self)
         board_size = self.config.board_size
-        return int(self.plays[ply_index, self.config.game_record_row_index] * board_size +
-                   self.plays[ply_index, self.config.game_record_col_index])
+        action =  int(self.plays[ply_index, self.config.game_record_row_index] * board_size +
+                      self.plays[ply_index, self.config.game_record_col_index])
+        assert 0 <= action < board_size ** 2
+        return action
 
     def player(self, ply_index):
         assert ply_index < len(self)

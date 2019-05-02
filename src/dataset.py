@@ -8,6 +8,7 @@ import yaml
 
 from game_record import GoGameRecord
 from model_config import ModelConfig
+from environment import GoState
 
 
 class BatchInput(object):
@@ -75,7 +76,7 @@ class Dataset(object):
             indices = yaml.load(in_fd)
             logging.info(f'loaded {index_file} in {time.time() - t0}')
             assert len(indices) > 0, index_file
-            for i, (file_name, ply_len) in enumerate(indices):
+            for i, (file_name, ply_len) in enumerate(indices[:100]):
                 dataset.filenames.append(file_name)
                 dataset.ply_indices += [(i, j) for j in range(ply_len)]
         print(f'loaded total games = {len(dataset.filenames)}, '
