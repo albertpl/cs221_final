@@ -27,8 +27,6 @@
 \usepackage{verbatim}
 \usepackage[htt]{hyphenat}
 \usepackage[letterpaper, portrait, margin=1.5in]{geometry}
-\counterwithin{table}{section}
-\counterwithin{figure}{section}
 
 % Directives
 \setlength\extrarowheight{5pt}
@@ -50,19 +48,33 @@
 \end{align*}
 
 \section{Introduction}
-We formulate the game of Go as a reinforcement problem. The state space is all possible placements of the stones on the board and the player (i.e. black or white), which is fully observable as input. The action space is any legal position the player can put a stone to plus a special "pass" action. We aim to learn the optimal policy through reinforcement learning where out system can produce next action by observing the board. Figure \ref{fig:goboard} shows a concrete Go board and white stone $P15$ is the current move. The main challenge is enormous search space, large number of legal move per state ( $\sim 250$ ) and the difficulty to handcraft a heuristic evaluation function for positions and moves. DeepMind team has made tremendous improvements, particularly AlphaGo \cite{silver2016mastering}, AlphaGoZero \cite{silver2017masteringalphagozero} and AlphaZero \cite{silver2017masteringalphazero} with deep reinforcement learning approaches and self-play.
-
-\section{Evaluation}
-We follow the standard setup and assign a reward to the player, 0 if it is tie, -1 if player loses, +1 if player wins. And we use Pachi \cite{baudivs2011pachi} as our game engine and adapt a Python wrapper based on OpenAI's Gym \cite{brockman2016openai} previous implementation. The build-in Pachi engine is said to hold KGS 2d rank and is considered as our oracle.
-
-As for our baseline, we train a 4-layer convolutional neural network by supervised learning to emulate the moves made by expert players. The dataset \cite{FoxGoServer} contains $~140K$ game records in SGF format played by professional players.
 \begin{figure}[H]
 \begin{center}
-\includegraphics[width=0.5\linewidth]{goboard}
+\includegraphics[width=0.25\linewidth]{goboard}
 \end{center}
 \caption{a snapshot of the Go board}
 \label{fig:goboard}
 \end{figure}
+
+We formulate Go as a turn-taking, two player, zero-sum game of perfect information. The state space is all possible placements of the stones on the board and the player who plays that turn. The player is either black stone or white stone. The state is fully observable as input. The action space is any legal position a stone can be, given the current state, and a special "pass" action.  The utility for our agent is, 0 for tie, -1 for loss, and +1 for win. We aim to learn to make optimal move to maximum the utility, by observing the board. Figure \ref{fig:goboard} shows a concrete Go board and white stone is making a move at $P15$.
+
+The main challenge is enormous search space, large number of legal move per state, i.e. branching factor, ( $\sim 250$ ) and the difficulty to handcraft a heuristic evaluation function for positions and moves. DeepMind team has made tremendous improvements, particularly AlphaGo \cite{silver2016mastering}, AlphaGoZero \cite{silver2017masteringalphagozero} and AlphaZero \cite{silver2017masteringalphazero} with deep reinforcement learning approaches and self-play.
+
+\section{Evaluation}
+Pachi \cite{baudivs2011pachi} is our game engine and we build the simulation environment based on OpenAI's Gym \cite{brockman2016openai} implementation. We plan to have the agent play against the build-in Pachi engine for n trials, which is said to hold KGS 2d rank, and report the average reward.
+
+As for our baseline, we propose two approaches
+\begin{enumerate}
+  \item
+    Random agent, i.e. uniformly choose one of the legal moves.
+  \item
+    We train a 4-layer convolutional neural network by supervised learning to predict the moves made by expert players. The dataset is from Fox Go Server \cite{FoxGoServer} and contains $9K$ game records of professional players. Following AlphaGoZero, our input feature is a 19x19x17 array, representing 8 boards with each board in two channels, one for current player and the other for opponent. The last channel represents current player.
+
+  We see neither plays good enough against the Pachi engine yet. We need to explore more advanced Reinforcement Learning approaches.
+    
+\end{enumerate}
+
+
 
 \bibliography{reference} 
 \bibliographystyle{ieeetr}
