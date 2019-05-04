@@ -23,7 +23,7 @@ class RandomPlayer(object):
 def create_agent(config: ModelConfig, env):
     if config.player_policy == 'random':
         return RandomPlayer(env)
-    elif config.player_policy == 'baseline':
+    elif config.player_policy == 'sl':
         return Player(config)
     else:
         raise ValueError(f'unsupported policy = {config.player_policy}')
@@ -74,6 +74,7 @@ def evaluate():
     num_episode = args.num_episode
     config = ModelConfig()
     config.player = pachi_py.BLACK
+    config.player_policy = args.policy
     evaluate_policy(config, num_episode=num_episode, print_board=args.print_board, out_path=args.out_path)
 
 
@@ -84,6 +85,7 @@ if __name__ == '__main__':
     subparser.required = True
 
     sub_parser = subparser.add_parser('eval')
+    sub_parser.add_argument('--policy', default='random', choices=('random', 'sl'))
     sub_parser.add_argument('--num_episode', type=int, default=1)
     sub_parser.add_argument('--print_board', type=int, default=0)
     sub_parser.add_argument('--out_path')

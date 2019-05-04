@@ -14,7 +14,7 @@ class ModelConfig(object):
     game_record_row_index = -3
     game_record_col_index = -2
     game_record_player_index = -1
-    player_policy = 'random'
+    player_policy = ''
     max_time_step_per_episode = 1000
     # hyper parameters for model
     dense_layer_dim = 256

@@ -56,23 +56,26 @@
 \label{fig:goboard}
 \end{figure}
 
-We formulate Go as a turn-taking, two player, zero-sum game of perfect information. The state space is all possible placements of the stones on the board and the player who plays that turn. The player is either black stone or white stone. The state is fully observable as input. The action space is any legal position a stone can be, given the current state, and a special "pass" action.  The utility for our agent is, 0 for tie, -1 for loss, and +1 for win. We aim to learn to make optimal move to maximum the utility, by observing the board. Figure \ref{fig:goboard} shows a concrete Go board and white stone is making a move at $P15$.
+We formulate Go as a turn-taking, two player, zero-sum game of perfect information. The state space is all possible placements of the stones on the board and the player who plays that turn. The player is either black stone or white stone. The state is fully observable as input. The action space is any legal position a stone can be, given the current state, and a pass action. The goal is to learn to win the game, by observing the board only. Figure \ref{fig:goboard} shows a concrete Go board and white stone is making a move at $P15$. 
 
-The main challenge is enormous search space, large number of legal move per state, i.e. branching factor, ( $\sim 250$ ) and the difficulty to handcraft a heuristic evaluation function for positions and moves. DeepMind team has made tremendous improvements, particularly AlphaGo \cite{silver2016mastering}, AlphaGoZero \cite{silver2017masteringalphagozero} and AlphaZero \cite{silver2017masteringalphazero} with deep reinforcement learning approaches and self-play.
+The main challenge is the enormous search space, large number of legal move per state, i.e. branching factor ( $\sim 250$ ),  and the difficulty to handcraft a heuristic evaluation function for positions and moves. DeepMind team has made tremendous improvements, particularly AlphaGo \cite{silver2016mastering}, AlphaGoZero \cite{silver2017masteringalphagozero} and AlphaZero \cite{silver2017masteringalphazero} with deep reinforcement learning approaches and self-play.
 
 \section{Evaluation}
-Pachi \cite{baudivs2011pachi} is our game engine and we build the simulation environment based on OpenAI's Gym \cite{brockman2016openai} implementation. We plan to have the agent play against the build-in Pachi engine for n trials, which is said to hold KGS 2d rank, and report the average reward.
+Pachi \cite{baudivs2011pachi} is our game engine and we build the simulation environment based on OpenAI's Gym \cite{brockman2016openai} implementation. We plan to have the agent play against the build-in Pachi engine for n games and report the average utility. We assign a scalar utility for our agent, 0 for tie, -1 for loss, and +1 for win. 
 
 As for our baseline, we propose two approaches
 \begin{enumerate}
   \item
-    Random agent, i.e. uniformly choose one of the legal moves.
-  \item
-    We train a 4-layer convolutional neural network by supervised learning to predict the moves made by expert players. The dataset is from Fox Go Server \cite{FoxGoServer} and contains $9K$ game records of professional players. Following AlphaGoZero, our input feature is a 19x19x17 array, representing 8 boards with each board in two channels, one for current player and the other for opponent. The last channel represents current player.
+    Random agent, i.e. uniformly choose one of the legal moves. We have random agent play 1000 games against Pachi engine. 
 
-  We see neither plays good enough against the Pachi engine yet. We need to explore more advanced Reinforcement Learning approaches.
-    
+    The win rate is $4/1000$, average utility is $-0.92$, average time per game is $22.7$ seconds and average time steps per game is $132$. We note that the average step of all the non-loss games is $18$, i.e. it is due to pass action.
+  \item
+    We train a 4-layer convolutional neural network by supervised learning to predict the moves made by expert players. The dataset is from Fox Go Server \cite{FoxGoServer} and contains $9K$ game records of professional players. Following AlphaGoZero, our input feature is a 19x19x17 array, representing 8 boards with each board in two channels, one for current player and the other for opponent. The last channel represents current player. We train on single GPU for $\sim 36$ hours and the train accuracy is $~0.08$ and the training is ongoing.
+
+    The win rate is $0/100$ as we write the report, i.e. agent lost all $100$ games.
 \end{enumerate}
+
+We see both play poorly. There are more works for the supervised training baseline. We have to explore more advanced Deep Reinforcement Learning approaches.
 
 
 
