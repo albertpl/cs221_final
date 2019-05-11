@@ -46,11 +46,14 @@ def sgf2record():
             valid_play = True
             for i, (colour, move) in enumerate(plays):
                 if move is None:
-                    continue
+                    # pass action
+                    row, col = board_size, 0
+                    print(f'pass action in {sgf_file}')
+                else:
+                    row, col = move
                 # N * N are row x column  +
                 out_data[i, :board_size**2] = [GoGameRecord.color_to_player(c)
-                                               for r in board.board for c in r]
-                row, col = move
+                                               for r in board.board[::-1] for c in r]
                 out_data[i, model_config.game_record_row_index] = row
                 out_data[i, model_config.game_record_col_index] = col
                 out_data[i, model_config.game_record_player_index] = GoGameRecord.color_to_player(colour)

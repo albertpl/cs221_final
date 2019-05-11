@@ -3,6 +3,7 @@ import joblib
 import logging
 import numpy as np
 from pathlib import Path
+import random
 import time
 from tqdm import tqdm
 
@@ -14,11 +15,14 @@ logging_format = '%(asctime)s %(module)s:%(lineno)d %(funcName)s %(levelname)s %
 
 def train_sl():
     config = ModelConfig()
+    np.random.seed(config.seed)
+    random.seed(config.seed)
     dataset_root = Path(args.dataset_path)
     assert dataset_root.exists()
     config.dataset_path = args.dataset_path
     config.weight_root = args.weight_path
     config.learner_log_dir = args.log_dir
+    config.model_name = 'SL_resnet18'
     model_controller = KerasModelController(config)
     model_controller.train()
 

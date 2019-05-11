@@ -6,31 +6,36 @@ def add_to_parser(config_obj, parser):
 
 
 class ModelConfig(object):
+    seed = 23
     # GO game configurations
-    board_size = 19
+    board_size = 9
+    action_space_size = board_size * board_size + 2
     game_index_file = 'game_index.yaml'
+    game_record_path = ''
     tree_depth = 8
-    feature_channel = 17  # 2 * 8 + 1
-    game_record_row_index = -3
-    game_record_col_index = -2
-    game_record_player_index = -1
+    feature_channel = 17  # 2 * tree_depth + 1
     player_policy = ''
     max_time_step_per_episode = 1000
+    print_board = 0
+    # patchi
+    pachi_timestr = '_2400'
     # hyper parameters for model
-    dense_layer_dim = 256
-    batch_size = 64
+    fc1_dim = 256
+    fc2_dim = 128
+    batch_size = 32
     batch_size_inference = 64
     # hyper parameters for training
-    training_epochs = 500
+    train_first_n_samples = 0
+    training_epochs = 100
     save_weight_on_best_train = True
     lr_scheduler = 'clr_exp_range'
-    lr_reset_every_epochs = 20
-    lr_range = [1.0e-4, 3.0e-3]
+    lr_reset_every_epochs = 10
+    lr_range = [1.0e-4, 1.0e-3]
     lr_decay = 0.99
     dropout_keep_prob = 1.0
     early_stop = 100000
     use_augmentation = False
-    model_name = 'SL'
+    model_name = ''
     print_n_per_epoch = 1000
     # parameters to be set during training
     iterations_per_epoch = 1

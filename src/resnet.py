@@ -22,6 +22,11 @@ from keras.regularizers import l2
 from keras import backend as K
 
 
+ROW_AXIS = 1
+COL_AXIS = 2
+CHANNEL_AXIS = 3
+
+
 def _bn_relu(input):
     """Helper to build a BN -> relu block
     """
@@ -187,12 +192,11 @@ def _get_block(identifier):
 
 class ResnetBuilder(object):
     @staticmethod
-    def build(input_shape, num_outputs, block_fn, repetitions):
+    def build(input_layer, block_fn, repetitions):
         """Builds a custom ResNet like architecture.
 
         Args:
-            input_shape: The input shape in the form (nb_rows, nb_cols, nb_channels)
-            num_outputs: The number of outputs at final softmax layer
+            input_layer: The input layer in the form (nb_rows, nb_cols, nb_channels)
             block_fn: The block function to use. This is either `basic_block` or `bottleneck`.
                 The original paper used basic_block for layers < 50
             repetitions: Number of repetitions of various block units.
@@ -201,18 +205,11 @@ class ResnetBuilder(object):
         Returns:
             The keras `Model`.
         """
-        _handle_dim_ordering()
-        if len(input_shape) != 3:
-            raise Exception("Input shape should be a tuple (nb_channels, nb_rows, nb_cols)")
-
-        # Permute dimension order if necessary
         assert K.image_dim_ordering() == 'tf'
 
         # Load function from str if needed.
         block_fn = _get_block(block_fn)
-
-        input = Input(shape=input_shape)
-        conv1 = _conv_bn_relu(filters=32, kernel_size=(3, 3), strides=(1, 1))(input)
+        conv1 = _conv_bn_relu(filters=32, kernel_size=(3, 3), strides=(1, 1))(input_layer)
         pool1 = MaxPooling2D(pool_size=(2, 2), strides=None, padding="valid")(conv1)
 
         block = pool1
@@ -229,27 +226,24 @@ class ResnetBuilder(object):
         pool2 = AveragePooling2D(pool_size=(block_shape[ROW_AXIS], block_shape[COL_AXIS]),
                                  strides=(1, 1))(block)
         flatten1 = Flatten()(pool2)
-        dense = Dense(units=num_outputs, activation="softmax")(flatten1)
-
-        model = Model(inputs=input, outputs=dense)
-        return model
+        return flatten1
 
     @staticmethod
-    def build_resnet_18(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, basic_block, [2, 2, 2, 2])
+    def build_resnet_18(input_layer):
+        return ResnetBuilder.build(input_layer, basic_block, [2, 2, 2, 2])
 
     @staticmethod
-    def build_resnet_34(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, basic_block, [3, 4, 6, 3])
+    def build_resnet_34(input_layer):
+        return ResnetBuilder.build(input_layer, basic_block, [3, 4, 6, 3])
 
     @staticmethod
-    def build_resnet_50(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, bottleneck, [3, 4, 6, 3])
+    def build_resnet_50(input_layer):
+        return ResnetBuilder.build(input_layer, bottleneck, [3, 4, 6, 3])
 
     @staticmethod
-    def build_resnet_101(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, bottleneck, [3, 4, 23, 3])
+    def build_resnet_101(input_layer):
+        return ResnetBuilder.build(input_layer, bottleneck, [3, 4, 23, 3])
 
     @staticmethod
-    def build_resnet_152(input_shape, num_outputs):
-        return ResnetBuilder.build(input_shape, num_outputs, bottleneck, [3, 8, 36, 3])
+    def build_resnet_152(input_layer):
+        return ResnetBuilder.build(input_layer, bottleneck, [3, 8, 36, 3])

@@ -1,8 +1,8 @@
+import numpy as np
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.models import load_model, Model
 from keras.backend.tensorflow_backend import set_session
 import logging
-import numpy as np
 import os
 from pathlib import Path
 import tensorflow as tf
@@ -10,7 +10,6 @@ from typing import Optional
 from tqdm import tqdm
 
 from dataset import Dataset, DatasetContainer, BatchInput, BatchOutput
-from environment import GoState
 from keras_callback_lr_scheduler import KerasCBLRScheduler
 from keras_callback_tf_summary import KerasCBSummaryWriter
 from model_config import ModelConfig

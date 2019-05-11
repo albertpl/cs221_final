@@ -31,7 +31,7 @@ class Dataset(object):
         self.generator = None
         self.batch_size = 0
         self.xs, self.ys = None, None
-        self.filenames = []
+        self.game_records = []
         self.ply_indices = []
         return
 
@@ -48,14 +48,38 @@ class Dataset(object):
         batch_size = len(ply_indices)
         batch = BatchInput()
         batch.batch_xs = np.zeros((batch_size, config.board_size, config.board_size, config.feature_channel))
-        batch.batch_ys = np.zeros(batch_size)
+        action_distribution = np.zeros((batch_size, config.action_space_size), dtype=float)
+        value_target = np.zeros(batch_size, dtype=float)
         for b, (game_index, ply_index) in enumerate(ply_indices):
-            assert game_index < len(self.filenames)
-            game_record = GoGameRecord.from_file(self.config, self.filenames[game_index])
+            assert game_index < len(self.game_records)
+            game_record = self.game_records[game_index]
             assert game_record is not None
             batch.batch_xs[b, ...] = game_record.feature(depth=depth, ply_index=ply_index)
-            batch.batch_ys[b] = game_record.action(ply_index=ply_index)
-        return batch.batch_xs, batch.batch_ys
+            action_distribution[b, game_record.action(ply_index=ply_index)] = 1.0
+            value_target[b] = game_record.outcome
+        return batch.batch_xs, {'policy': action_distribution, 'value': value_target}
+
+    @classmethod
+    def update_index_file(cls, config: ModelConfig, in_root: Path):
+        index_file = in_root/config.game_index_file
+        indices, game_record_files = [], set()
+        num_current_game_records = 0
+        t0 = time.time()
+        if index_file.exists():
+            with open(index_file, 'r') as in_fd:
+                indices = yaml.load(in_fd)
+                game_record_files = set(f for f, _ in indices)
+                num_current_game_records = len(game_record_files)
+        logging.info(f'searching game records in {in_root} to update index file')
+        indices += [(str(game_record_file), len(GoGameRecord.from_file(config, game_record_file)))
+                    for game_record_file in tqdm(in_root.glob('**/*.joblib'))
+                    if str(game_record_file) not in game_record_files]
+        if num_current_game_records != len(indices):
+            with open(index_file, 'w') as out_fd:
+                yaml.dump(indices, out_fd)
+        assert len(indices) > 0, f'fail to update {index_file}'
+        logging.info(f'updating {index_file} in {time.time() - t0}')
+        return indices
 
     @classmethod
     def load_datasets(cls, config: ModelConfig, in_root):
@@ -67,21 +91,20 @@ class Dataset(object):
         """
         in_root = Path(in_root)
         assert in_root.exists() and in_root.is_dir(), in_root
-        index_file = in_root/config.game_index_file
-        assert index_file.exists()
         dataset = Dataset(config)
+        indices = cls.update_index_file(config, in_root)
         t0 = time.time()
-        with open(index_file, 'r') as in_fd:
-            logging.info(f'loading from {index_file}')
-            indices = yaml.load(in_fd)
-            logging.info(f'loaded {index_file} in {time.time() - t0}')
-            assert len(indices) > 0, index_file
-            for i, (file_name, ply_len) in enumerate(indices):
-                dataset.filenames.append(file_name)
-                dataset.ply_indices += [(i, j) for j in range(ply_len)]
-        print(f'loaded total games = {len(dataset.filenames)}, '
-              f'total ply = {len(dataset.ply_indices)}, '
-              f'in {time.time() - t0:.1f}s')
+        if config.train_first_n_samples > 0:
+            indices = indices[:config.train_first_n_samples]
+        logging.info(f'loading {len(indices)} game records from {in_root}')
+        for i, (file_name, ply_len) in tqdm(enumerate(indices)):
+            game_record = GoGameRecord.from_file(config, file_name)
+            assert game_record is not None, f'fail to load game record from {file_name}'
+            dataset.game_records.append(game_record)
+            dataset.ply_indices += [(i, j) for j in range(ply_len)]
+        logging.info(f'loaded total games = {len(dataset.game_records)}, '
+                     f'total ply = {len(dataset.ply_indices)}, '
+                     f'in {time.time() - t0:.1f}s')
         return dataset
 
     def batch_generator(self, batch_size, random_sampling=True, augmentation=False, loop=False, return_raw=False):

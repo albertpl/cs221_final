@@ -1,8 +1,6 @@
 from keras import layers
 from keras import models
 from keras import backend as K
-from keras.losses import sparse_categorical_crossentropy
-from keras.metrics import sparse_categorical_accuracy
 from keras.optimizers import Nadam, Adam
 
 from model_config import ModelConfig
@@ -10,7 +8,7 @@ from resnet import ResnetBuilder
 
 
 def build_simple_model(config: ModelConfig):
-    num_action = config.board_size * config.board_size
+    num_action = config.action_space_size
     # H x W x C=1 (fake dimension), W=max_seq_len, C=dim_x
     model = models.Sequential()
     model.add(layers.Conv2D(32, (3, 3), input_shape=(config.board_size, config.board_size, config.feature_channel)))
@@ -18,37 +16,31 @@ def build_simple_model(config: ModelConfig):
     model.add(layers.Activation('relu'))
     model.add(layers.MaxPooling2D((2, 2)))
 
-    model.add(layers.Conv2D(64, (3, 3)))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Activation('relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-
-    model.add(layers.Conv2D(64, (3, 3)))
-    model.add(layers.BatchNormalization())
-    model.add(layers.Activation('relu'))
-
     model.add(layers.Flatten())
     # model.add(layers.Dropout(1.0 - config.dropout_keep_prob))
-    model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
-    model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
-    model.add(layers.Dense(config.dense_layer_dim, activation='relu'))
-    model.add(layers.Dense(num_action, activation='softmax'))
-    return model
+    model.add(layers.Dense(config.fc1_dim, activation='relu'))
+    model.add(layers.Dense(config.fc2_dim, activation='relu'))
+    x = model.output
+    policy_network = layers.Dense(num_action, activation='softmax', name='policy')(x)
+    value_network = layers.Dense(1, activation='tanh', name='value')(x)
+    return models.Model(inputs=model.input, outputs=[policy_network, value_network])
 
 
 def build_resnet(config: ModelConfig):
-    num_action = config.board_size * config.board_size
-    resnet = ResnetBuilder.build_resnet_18(
-        input_shape=(config.board_size, config.board_size, config.feature_channel),
-        num_outputs=config.dense_layer_dim)
-    output = layers.Dense(num_action, activation='softmax')(resnet.output)
-    return models.Model(inputs=resnet.input, outputs=output)
+    num_action = config.action_space_size
+    input_layer = layers.Input(shape=(config.board_size, config.board_size, config.feature_channel))
+    resnet_out = ResnetBuilder.build_resnet_18(input_layer)
+    x = layers.Dense(config.fc1_dim, activation='relu')(resnet_out)
+    x = layers.Dense(config.fc2_dim, activation='relu')(x)
+    policy_network = layers.Dense(num_action, activation='softmax', name='policy')(x)
+    value_network = layers.Dense(1, activation='tanh', name='value')(x)
+    return models.Model(inputs=input_layer, outputs=[policy_network, value_network])
 
 
 def create_model(config: ModelConfig):
-    # model = build_resnet(config)
-    model = build_simple_model(config)
+    model = build_resnet(config)
+    # model = build_simple_model(config)
     model.compile(optimizer=Adam(lr=1e-4),
-                  loss=sparse_categorical_crossentropy,
-                  metrics=[sparse_categorical_accuracy, ])
+                  metrics={'policy': 'categorical_accuracy'},
+                  loss={'policy': 'categorical_crossentropy', 'value': 'mean_squared_error'})
     return model

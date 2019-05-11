@@ -3,79 +3,35 @@ import logging
 import numpy as np
 import pachi_py
 import pandas as pd
-from pathlib import Path
 import time
-from tqdm import tqdm
 
-from environment import GoEnv, make_random_policy, make_pachi_policy
+from environment import GoEnv
 from model_config import ModelConfig
-from player import Player
 
 
-class RandomPlayer(object):
-    def __init__(self, env):
-        self.policy = make_random_policy(env.np_random)
-
-    def play(self, state):
-        return self.policy(state)
-
-
-def create_agent(config: ModelConfig, env):
-    if config.player_policy == 'random':
-        return RandomPlayer(env)
-    elif config.player_policy == 'sl':
-        return Player(config)
+def create_agent(config: ModelConfig, policy):
+    if policy == 'random':
+        from random_player import RandomPlayer
+        return RandomPlayer(config)
+    elif policy == 'sl':
+        from nn_player import NetworkPlayer
+        return NetworkPlayer(config)
+    elif policy == 'pachi':
+        from pachi_player import PachiPlayer
+        return PachiPlayer(config)
     else:
         raise ValueError(f'unsupported policy = {config.player_policy}')
 
 
-def evaluate_policy(config: ModelConfig, num_episode, print_board, out_path):
-    env = GoEnv(player_color='black', illegal_move_mode='raise', board_size=19)
-    total_rewards, total_steps = [], []
-    t0 = time.time()
-    for i_episode in range(num_episode):
-        total_reward = 0.0
-        encoded_board = env.reset()
-        assert env.state.color == env.player_color
-        agent = create_agent(config, env)
-        t = 0
-        for t in tqdm(range(config.max_time_step_per_episode)):
-            if print_board > 1:
-                env.render()
-                logging.debug(encoded_board[:2, ...])
-            action = agent.play(env.state)
-            encoded_board, reward, done, info = env.step(action)
-            total_reward += reward
-            if done:
-                logging.debug(f"[{i_episode}]: t={t+1}, total_reward={total_reward}")
-                if print_board > 0:
-                    env.render()
-                break
-        total_rewards.append(total_reward)
-        total_steps.append(t)
-        logging.info(f'[{i_episode}]: reward={total_reward}, step={t}')
-    env.close()
-    t1 = time.time()
-    rewards_pd = pd.DataFrame(total_rewards)
-    steps_pd = pd.DataFrame(total_steps)
-    if out_path:
-        out_path = Path(out_path)
-        out_path.mkdir(exist_ok=True, parents=True)
-        rewards_pd.to_csv(out_path/'rewards.csv')
-        steps_pd.to_csv(out_path/'steps.csv')
-    print(f'total episode: {num_episode}, '
-          f'\naverage reward: {rewards_pd.describe()}, '
-          f'\naverage time step: {steps_pd.describe()}, '
-          f'\ntime: {(t1-t0)/num_episode:.1f}s per game, ')
-    return total_rewards
-
-
 def evaluate():
-    num_episode = args.num_episode
     config = ModelConfig()
-    config.player = pachi_py.BLACK
-    config.player_policy = args.policy
-    evaluate_policy(config, num_episode=num_episode, print_board=args.print_board, out_path=args.out_path)
+    config.print_board = args.print_board
+    config.weight_root = args.weight_root
+    config.game_record_path = args.out_path
+    env = GoEnv(config,
+                create_agent(config, args.black_policy),
+                create_agent(config, args.white_policy))
+    env.play(num_games=args.num_games)
 
 
 if __name__ == '__main__':
@@ -85,9 +41,11 @@ if __name__ == '__main__':
     subparser.required = True
 
     sub_parser = subparser.add_parser('eval')
-    sub_parser.add_argument('--policy', default='random', choices=('random', 'sl'))
-    sub_parser.add_argument('--num_episode', type=int, default=1)
+    sub_parser.add_argument('black_policy', choices=('random', 'sl', 'pachi'))
+    sub_parser.add_argument('white_policy', choices=('random', 'sl', 'pachi'))
+    sub_parser.add_argument('num_games', type=int)
     sub_parser.add_argument('--print_board', type=int, default=0)
+    sub_parser.add_argument('--weight_root')
     sub_parser.add_argument('--out_path')
     sub_parser.set_defaults(func=evaluate)
 

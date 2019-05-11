@@ -1,15 +1,18 @@
 """
 Adapted from https://github.com/openai/gym/blob/6af4a5b9b2755606c4e0becfe1fc876d33130526/gym/envs/board_game/go.py
 """
-import gym
-from gym import spaces
-from gym.utils import seeding
+import logging
 import numpy as np
 from six import StringIO
 import pachi_py
 import sys
 import six
+from tqdm import tqdm
 
+
+from game_record import GoGameRecord
+from model_config import ModelConfig
+from player import Player
 
 # The coordinate representation of Pachi (and pachi_py) is defined on a board
 # with extra rows and columns on the margin of the board, so positions on the board
@@ -25,7 +28,7 @@ def resign_action(board_size):
     return board_size**2 + 1
 
 
-def _coord_to_action(board, c):
+def coord_to_action(board, c):
     '''Converts Pachi coordinates to actions'''
     if c == pachi_py.PASS_COORD: return pass_action(board.size)
     if c == pachi_py.RESIGN_COORD: return resign_action(board.size)
@@ -42,7 +45,7 @@ def action_to_coord(board, a):
 
 
 def str_to_action(board, s):
-    return _coord_to_action(board, board.str_to_coord(s.encode()))
+    return coord_to_action(board, board.str_to_coord(s.encode()))
 
 
 class GoState(object):
@@ -67,6 +70,9 @@ class GoState(object):
         Returns:
             a new GoState with the new board and the player switched
         '''
+        # coordinate = action_to_coord(self.board, action)
+        # legal_coords = self.board.get_legal_coords(self.color)
+        # assert coordinate in legal_coords, f'player={self.color}, action={action}'
         return GoState(
             self.board.play(action_to_coord(self.board, action), self.color),
             pachi_py.stone_other(self.color))
@@ -75,27 +81,20 @@ class GoState(object):
         return 'To play: {}\n{}'.format(six.u(pachi_py.color_to_str(self.color)), self.board.__repr__().decode())
 
 
-### Adversary policies ###
-def make_random_policy(np_random):
-    def random_policy(curr_state):
-        b = curr_state.board
-        legal_coords = b.get_legal_coords(curr_state.color)
-        chosen_action = _coord_to_action(b, np_random.choice(legal_coords))
-        return chosen_action
-    return random_policy
-
-
 def make_pachi_policy(board, engine_type='uct', threads=1, pachi_timestr=''):
-    engine = pachi_py.PyPachiEngine(board, engine_type, six.b('threads=%d' % threads))
+    engine = pachi_py.PyPachiEngine(board.clone(), engine_type, six.b('threads=%d' % threads))
 
     def pachi_policy(curr_state, prev_state, prev_action):
         if prev_state is not None:
-            assert engine.curr_board == prev_state.board, 'Engine internal board is inconsistent with provided board. The Pachi engine must be called consistently as the game progresses.'
+            assert engine.curr_board == prev_state.board, \
+                'Engine internal board is inconsistent with provided board. ' \
+                'The Pachi engine must be called consistently as the game progresses.'
             prev_coord = action_to_coord(prev_state.board, prev_action)
             engine.notify(prev_coord, prev_state.color)
             engine.curr_board.play_inplace(prev_coord, prev_state.color)
         out_coord = engine.genmove(curr_state.color, pachi_timestr)
-        out_action = _coord_to_action(curr_state.board, out_coord)
+        out_action = coord_to_action(curr_state.board, out_coord)
+        # print(f'pachi playing action = {out_action}, color={curr_state.color}, state={curr_state}')
         engine.curr_board.play_inplace(out_coord, curr_state.color)
         return out_action
     return pachi_policy
@@ -124,158 +123,65 @@ def _play(black_policy_fn, white_policy_fn, board_size=19):
 
 
 class GoEnv(object):
-    '''
-    Go environment. Play against a fixed opponent.
-    '''
-    metadata = {"render.modes": ["human", "ansi"]}
+    def __init__(self, config: ModelConfig, black_player: Player, white_player: Player):
+        self.config = config
+        self.board_size = config.board_size
+        self.black_player = black_player
+        self.white_player = white_player
 
-    def __init__(self, player_color,
-                 opponent='pachi:uct:_2400',
-                 observation_type='image3c',
-                 illegal_move_mode='raise',
-                 board_size=9):
-        """
-        Args:
-            player_color: Stone color for the agent. Either 'black' or 'white'
-            opponent: An opponent policy
-            observation_type: State encoding
-            illegal_move_mode: What to do when the agent makes an illegal move. Choices: 'raise' or 'lose'
-        """
-        assert isinstance(board_size, int) and board_size >= 1, 'Invalid board size: {}'.format(board_size)
-        self.board_size = board_size
+    @classmethod
+    def seed(cls, seed=None):
+        pachi_py.pachi_srand(seed)
+        return
 
-        self._seed()
-
-        colormap = {
-            'black': pachi_py.BLACK,
-            'white': pachi_py.WHITE,
-        }
-        try:
-            self.player_color = colormap[player_color]
-        except KeyError:
-            raise ValueError("player_color must be 'black' or 'white', not {}".format(player_color))
-
-        assert opponent in ('random', 'pachi:uct:_2400')
-        self.opponent_policy = None
-        self.opponent = opponent
-
-        assert observation_type in ['image3c'], observation_type
-        self.observation_type = observation_type
-
-        assert illegal_move_mode in ['lose', 'raise']
-        self.illegal_move_mode = illegal_move_mode
-
-        shape = pachi_py.CreateBoard(self.board_size).encode().shape
-        self.observation_space = spaces.Box(np.zeros(shape), np.ones(shape))
-        # One action for each board position, pass, and resign
-        self.action_space = spaces.Discrete(self.board_size**2 + 2)
-
-        # Filled in by _reset()
-        self.state = None
-        self.done = True
-
-    def _seed(self, seed=None):
-        self.np_random, seed1 = seeding.np_random(seed)
-        # Derive a random seed.
-        seed2 = seeding.hash_seed(seed1 + 1) % 2**32
-        pachi_py.pachi_srand(seed2)
-        return [seed1, seed2]
-
-    def reset(self):
-        self.state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
-
-        # (re-initialize) the opponent
-        # necessary because a pachi engine is attached to a game via internal data in a board
-        # so with a fresh game, we need a fresh engine
-        self._reset_opponent(self.state.board)
-
-        # Let the opponent play if it's not the agent's turn
-        opponent_resigned = False
-        if self.state.color != self.player_color:
-            self.state, opponent_resigned = self._exec_opponent_play(self.state, None, None)
-
-        # We should be back to the agent color
-        assert self.state.color == self.player_color
-
-        self.done = self.state.board.is_terminal or opponent_resigned
-        return self.state.board.encode()
-
-    def close(self):
-        self.opponent_policy = None
-        self.state = None
-
-    def render(self, mode="human", close=False):
-        if close:
-            return
+    @classmethod
+    def render(cls, state, mode="human"):
         outfile = StringIO() if mode == 'ansi' else sys.stdout
-        outfile.write(repr(self.state) + '\n')
+        outfile.write(repr(state) + '\n')
         return outfile
 
-    def step(self, action):
-        assert self.state.color == self.player_color
+    def play(self, num_games=1):
+        black_wins, white_wins = 0, 0
+        black_pairs, white_pairs = [], []
+        for iter_game in tqdm(range(num_games)):
+            curr_state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
+            self.black_player.reset(curr_state.board)
+            self.white_player.reset(curr_state.board)
+            prev_state, prev_action = None, None
+            num_ply = 0
+            while not curr_state.board.is_terminal and num_ply < self.config.max_time_step_per_episode:
+                if num_ply % 2 == 0:
+                    current_player = self.black_player
+                    pairs = black_pairs
+                else:
+                    current_player = self.white_player
+                    pairs = white_pairs
+                encoded_board = curr_state.board.encode() if self.config.game_record_path else None
+                action = current_player.next_action(curr_state, prev_state, prev_action)
+                pairs.append((encoded_board, action))
+                try:
+                    next_state = curr_state.act(action)
+                    prev_state, prev_action = curr_state, action
+                    curr_state = next_state
+                    num_ply += 1
+                except pachi_py.IllegalMove:
+                    six.reraise(*sys.exc_info())
+            # We're in a terminal state. Reward is 1 if won, -1 if lost
+            assert curr_state.board.is_terminal
+            pairs = white_pairs
+            win_player = pachi_py.WHITE
+            if curr_state.board.official_score > 0:
+                white_wins += 1
+            if curr_state.board.official_score < 0:
+                black_wins += 1
+                pairs = black_pairs
+                win_player = pachi_py.BLACK
+            if self.config.game_record_path:
+                game_record = GoGameRecord.from_encoded_board(self.config, pairs, win_player)
+                game_record.write_to_path(self.config.game_record_path)
+            logging.debug(f'[{iter_game}]: num_plys={num_ply}, score={curr_state.board.official_score}')
+            if self.config.print_board > 0:
+                self.render(curr_state)
+        logging.info(f'black player win rate: {black_wins/num_games}, white player win rate: {white_wins/num_games}')
+        return
 
-        # If already terminal, then don't do anything
-        if self.done:
-            return self.state.board.encode(), 0., True, {'state': self.state}
-
-        # If resigned, then we're done
-        if action == resign_action(self.board_size):
-            self.done = True
-            return self.state.board.encode(), -1., True, {'state': self.state}
-
-        # Play
-        prev_state = self.state
-        try:
-            self.state = self.state.act(action)
-        except pachi_py.IllegalMove:
-            if self.illegal_move_mode == 'raise':
-                six.reraise(*sys.exc_info())
-            elif self.illegal_move_mode == 'lose':
-                # Automatic loss on illegal move
-                self.done = True
-                return self.state.board.encode(), -1., True, {'state': self.state}
-            else:
-                raise ValueError('Unsupported illegal move action: {}'.format(self.illegal_move_mode))
-
-        # Opponent play
-        if not self.state.board.is_terminal:
-            self.state, opponent_resigned = self._exec_opponent_play(self.state, prev_state, action)
-            # After opponent play, we should be back to the original color
-            assert self.state.color == self.player_color
-
-            # If the opponent resigns, then the agent wins
-            if opponent_resigned:
-                self.done = True
-                return self.state.board.encode(), 1., True, {'state': self.state}
-
-        # Reward: if nonterminal, then the reward is 0
-        if not self.state.board.is_terminal:
-            self.done = False
-            return self.state.board.encode(), 0., False, {'state': self.state}
-
-        # We're in a terminal state. Reward is 1 if won, -1 if lost
-        assert self.state.board.is_terminal
-        self.done = True
-        white_wins = self.state.board.official_score > 0
-        black_wins = self.state.board.official_score < 0
-        player_wins = (white_wins and self.player_color == pachi_py.WHITE) or (black_wins and self.player_color == pachi_py.BLACK)
-        reward = 1. if player_wins else -1. if (white_wins or black_wins) else 0.
-        return self.state.board.encode(), reward, True, {'state': self.state}
-
-    def _exec_opponent_play(self, curr_state, prev_state, prev_action):
-        assert curr_state.color != self.player_color
-        opponent_action = self.opponent_policy(curr_state, prev_state, prev_action)
-        opponent_resigned = opponent_action == resign_action(self.board_size)
-        return curr_state.act(opponent_action), opponent_resigned
-
-    @property
-    def _state(self):
-        return self.state
-
-    def _reset_opponent(self, board):
-        if self.opponent == 'random':
-            self.opponent_policy = make_random_policy(self.np_random)
-        elif self.opponent == 'pachi:uct:_2400':
-            self.opponent_policy = make_pachi_policy(board=board, engine_type=six.b('uct'), pachi_timestr=six.b('_2400')) # TODO: strength as argument
-        else:
-            raise ValueError('Unrecognized opponent policy {}'.format(self.opponent))
