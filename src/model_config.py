@@ -8,10 +8,10 @@ def add_to_parser(config_obj, parser):
 class ModelConfig(object):
     seed = 23
     # GO game configurations
+    komi = 5.5
     board_size = 9
     action_space_size = board_size * board_size + 2
     game_index_file = 'game_index.yaml'
-    game_record_path = ''
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
     player_policy = ''
@@ -19,7 +19,11 @@ class ModelConfig(object):
     print_board = 0
     # patchi
     pachi_timestr = '_2400'
-    # hyper parameters for model
+    # parameters for MCTS
+    mcts_c_puct = 1.0
+    mcts_num_rollout = 100
+    mcts_tao_threshold = 5  # following AGZ, before this threshold, tao=1, after, infinitesimal
+    # parameters for NN model
     fc1_dim = 256
     fc2_dim = 128
     batch_size = 32
@@ -37,11 +41,13 @@ class ModelConfig(object):
     use_augmentation = False
     model_name = ''
     print_n_per_epoch = 1000
-    # parameters to be set during training
     iterations_per_epoch = 1
+    allow_weight_init = True
+    # paths
+    game_record_path = ''
+    game_result_path = '/tmp/game_result'
     learner_log_dir = '/tmp/log_dir/'
     weight_root = '/tmp/weights/'
-    allow_weight_init = True
     dataset_path = '/tmp/go_games/'
 
     def __init__(self, **kwargs):

@@ -9,11 +9,5 @@ class RandomPlayer(Player):
         self.config = config
 
     def next_action(self, curr_state, prev_state, prev_action):
-        b = curr_state.board
-        legal_coords = b.get_legal_coords(curr_state.color)
-        chosen_action = coord_to_action(b, np.random.choice(legal_coords))
-        return chosen_action
-
-
-
+        return np.random.choice(curr_state.all_legal_actions())
 
