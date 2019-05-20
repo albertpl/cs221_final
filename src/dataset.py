@@ -8,7 +8,6 @@ import yaml
 
 from game_record import GoGameRecord
 from model_config import ModelConfig
-from environment import GoState
 
 
 class BatchInput(object):
@@ -82,7 +81,7 @@ class Dataset(object):
         return indices
 
     @classmethod
-    def load_datasets(cls, config: ModelConfig, in_root):
+    def from_path(cls, config: ModelConfig, in_root):
         """
         load train/val/test datasets
         :param config:
@@ -168,4 +167,16 @@ class Dataset(object):
 class DatasetContainer(object):
     def __init__(self):
         self.train, self.val, self.test = None, None, None
+
+    @classmethod
+    def from_path(cls, config: ModelConfig, in_root):
+        in_root = Path(in_root)
+        assert in_root.exists() and in_root.is_dir(), in_root
+        container = DatasetContainer()
+        for sub_dir in ('train', 'val', 'test'):
+            dataset_path = in_root/sub_dir
+            if dataset_path.exists():
+                setattr(container, sub_dir, Dataset.from_path(config, dataset_path))
+        return container
+
 
