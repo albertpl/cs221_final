@@ -68,10 +68,7 @@ class KerasModelController(object):
     def load_datasets(self, force_reload=False):
         if self.datasets and not force_reload:
             return
-        self.datasets = DatasetContainer()
-        self.datasets.train = Dataset.load_datasets(self.config, in_root=self.config.dataset_path)
-        # TODO
-        self.datasets.val = self.datasets.train
+        self.datasets = DatasetContainer().from_path(self.config, in_root=self.config.dataset_path)
 
     def train(self, **kwargs):
         with self:
