@@ -86,6 +86,10 @@ class GoState(object):
     def all_legal_actions(self):
         return [coord_to_action(self.board, c) for c in self.board.get_legal_coords(self.color)]
 
+    def random_action(self):
+        _, coord = self.board.play_random(self.color, return_action=True)
+        return coord_to_action(self.board, coord)
+
     def __repr__(self):
         return 'To play: {}\n{}'.format(six.u(pachi_py.color_to_str(self.color)), self.board.__repr__().decode())
 
@@ -149,11 +153,11 @@ class GoEnv(object):
         outfile.write(repr(state) + '\n')
         return outfile
 
-    def play_game(self, curr_state, prev_state=None, prev_action=None):
+    def play_game(self, curr_state, prev_state=None, prev_action=None, show_result=True):
         num_ply = 0
         black_pairs, white_pairs = [], []
         start_time = time.time()
-        while not curr_state.board.is_terminal and num_ply < self.config.max_time_step_per_episode:
+        while not curr_state.board.is_terminal:
             if curr_state.color == pachi_py.BLACK:
                 current_player = self.black_player
                 pairs = black_pairs
@@ -170,11 +174,11 @@ class GoEnv(object):
                 num_ply += 1
             except pachi_py.IllegalMove:
                 six.reraise(*sys.exc_info())
+        game_time = time.time() - start_time
         # We're in a terminal state. Reward is 1 if won, -1 if lost
         if not curr_state.board.is_terminal:
             print('game is out of time')
             self.render(curr_state)
-            return 0.0
         # komi is zero when the board is initialized
         # the official score is: komi + white score - black score + handicap (not used)
         score = self.config.komi + curr_state.board.official_score
@@ -191,8 +195,8 @@ class GoEnv(object):
             game_record.write_to_path(self.config.game_record_path)
         if self.config.print_board > 0:
             self.render(curr_state)
-        logging.debug(f'num_plys={num_ply}, reward={reward}, score={curr_state.board.official_score}')
-        game_time = time.time() - start_time
+        if show_result:
+            logging.info(f'num_plys={num_ply}, reward={reward}, score={curr_state.board.official_score}')
         return {
             'reward': reward,
             'score': score,
@@ -207,7 +211,6 @@ class GoEnv(object):
             self.black_player.reset(curr_state.board)
             self.white_player.reset(curr_state.board)
             results.append(self.play_game(curr_state))
-        print(results)
         results_pd = pd.DataFrame(results)
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)

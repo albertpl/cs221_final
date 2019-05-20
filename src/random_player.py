@@ -1,5 +1,4 @@
-from environment import coord_to_action
-import numpy as np
+from environment import GoState
 from player import Player
 
 
@@ -8,6 +7,6 @@ class RandomPlayer(Player):
         super().__init__()
         self.config = config
 
-    def next_action(self, curr_state, prev_state, prev_action):
-        return np.random.choice(curr_state.all_legal_actions())
+    def next_action(self, curr_state: GoState, prev_state, prev_action):
+        return curr_state.random_action()
 
