@@ -1,39 +1,43 @@
 import argparse
 import logging
 import numpy as np
+import pachi_py
 import time
 
 from environment import GoEnv
 from model_config import ModelConfig
 
 
-def create_agent(config: ModelConfig, policy):
+def create_agent(config: ModelConfig, policy, player):
+    assert player in (pachi_py.BLACK, pachi_py.WHITE)
+    record_path = config.black_player_record_path if player == pachi_py.BLACK else config.white_player_record_path
     if policy == 'random':
         from random_player import RandomPlayer
-        return RandomPlayer(config)
+        return RandomPlayer(config, player=player, record_path=record_path)
     elif policy == 'nn':
-        from nn_player import NetworkPlayer
-        return NetworkPlayer(config)
+        from policy_player import PolicyPlayer
+        return PolicyPlayer(config, player=player, record_path=record_path)
     elif policy == 'pachi':
         from pachi_player import PachiPlayer
-        return PachiPlayer(config)
+        return PachiPlayer(config, player=player, record_path=record_path)
     elif policy == 'mcts':
         from mcts_player import MCTSPlayer
-        return MCTSPlayer(config)
+        return MCTSPlayer(config, player=player, record_path=record_path)
+    elif policy == 'nn_guided_mcts':
+        from nn_guided_mcts_player import NNGuidedMCTSPlayer
+        return NNGuidedMCTSPlayer(config, player=player, record_path=record_path)
     else:
         raise ValueError(f'unsupported policy = {config.player_policy}')
 
 
 def evaluate():
-    config = ModelConfig()
-    config.print_board = args.print_board
-    config.weight_root = args.weight_root
-    config.game_record_path = args.record_path
-    config.game_result_path = f'{args.result_path}/{args.black_policy}_vs_{args.white_policy}/'
+    config = ModelConfig(**vars(args))
+    if args.result_root:
+        config.game_result_path = f'{args.result_root}/{args.black_policy}_vs_{args.white_policy}/'
     print(config)
     env = GoEnv(config,
-                create_agent(config, args.black_policy),
-                create_agent(config, args.white_policy))
+                create_agent(config, args.black_policy, pachi_py.BLACK),
+                create_agent(config, args.white_policy, pachi_py.WHITE))
     env.play(num_games=args.num_games)
 
 
@@ -48,10 +52,7 @@ if __name__ == '__main__':
     sub_parser.add_argument('black_policy')
     sub_parser.add_argument('white_policy')
     sub_parser.add_argument('num_games', type=int)
-    sub_parser.add_argument('--print_board', type=int, default=0)
-    sub_parser.add_argument('--weight_root')
-    sub_parser.add_argument('--record_path')
-    sub_parser.add_argument('--result_path', default='/tmp/game_result')
+    sub_parser.add_argument('--result_root')
     sub_parser.set_defaults(func=evaluate)
 
     args = parser.parse_args()

@@ -12,7 +12,7 @@ from player import Player
 
 
 class SearchTreeNode(object):
-    def __init__(self, config: ModelConfig, state, parent):
+    def __init__(self, config: ModelConfig, state: GoState, parent):
         self.state = state
         self.parent = parent
         # each edge (s, a) stores a prior, visit count and action value Q
@@ -26,6 +26,7 @@ class SearchTreeNode(object):
         self.illegal_cost[np.array(legal_actions)] = 0.0
         # default to uniform
         self.prior_probabilities = np.ones(config.action_space_size, dtype=float)
+        self.estimated_value = -float('inf')  # estimated state value for current node
         self.config = config
 
     def next_action(self):
@@ -47,13 +48,11 @@ class SearchTreeNode(object):
 
 
 class MCTSPlayer(Player):
-    def __init__(self, config: ModelConfig):
-        super().__init__()
-        self.config = config
-        self.root_node = None
+    def __init__(self, config: ModelConfig, player, record_path):
+        super().__init__(config=config, player=player, record_path=record_path)
         self.num_moves = 0
 
-    def simulate(self, node):
+    def simulate(self, node: SearchTreeNode):
         if self.config.mcts_simulation_policy == 'pachi':
             # for testing only
             from pachi_player import PachiPlayer
@@ -63,31 +62,52 @@ class MCTSPlayer(Player):
         else:
             # default roll out policy: random
             from random_player import RandomPlayer
-            black_player, white_player = RandomPlayer(self.config), RandomPlayer(self.config)
+            black_player = RandomPlayer(self.config, player=pachi_py.BLACK, record_path='')
+            white_player = RandomPlayer(self.config, player=pachi_py.WHITE, record_path='')
         env = GoEnv(self.config, black_player=black_player, white_player=white_player)
-        result, _, _ = env.play_game(node.state)
+        result, *_ = env.play_game(node.state)
         return result['reward']
+
+    def expand(self, node: SearchTreeNode, action):
+        successor_state = node.state.clone().act(action)
+        logging.debug(f'expanding to successor=\n{successor_state}')
+        successor_node = SearchTreeNode(self.config, successor_state, parent=node)
+        node.children[action] = successor_node
+        return successor_node
+
+    def select(self, node: SearchTreeNode):
+        return node.next_action()
+
+    def after_rollout(self, root_node: SearchTreeNode):
+        logging.debug(root_node.sum_action_values)
+        if self.num_moves <= self.config.mcts_tao_threshold:
+            probabilities = root_node.visit_counts/np.sum(root_node.visit_counts)
+            action = np.random.choice(self.config.action_space_size, size=1, p=probabilities)[0]
+        else:
+            action = np.argmax(root_node.visit_counts)
+        return action
+
+    def backup(self, path: [], reward):
+        for node, action in path:
+            node.visit_counts[action] += 1
+            player_reward = reward if node.state.color == pachi_py.BLACK else (reward * (-1.0))
+            node.sum_action_values[action] += player_reward
 
     def search(self, state):
         root_state = state.clone()
-        if self.root_node is None:
-            self.root_node = SearchTreeNode(self.config, state=root_state, parent=None)
+        root_node = SearchTreeNode(self.config, state=root_state, parent=None)
         for i in range(self.config.mcts_num_rollout):
-            node = self.root_node
+            node = root_node
             path = []
             # for each roll out
             # 1. traverse to leaf node, recursively, following tree policy: UCB
             while True:
-                action = node.next_action()
+                action = self.select(node)
                 path.append((node, action))
-                logging.debug(f'[{i}] action={action}')
                 if node.children[action] is None:
                     # 2. expand the leaf with successor state
                     try:
-                        successor_state = node.state.clone().act(action)
-                        successor_node = SearchTreeNode(self.config, successor_state, parent=node)
-                        node.children[action] = successor_node
-                        logging.debug(f'expanding to successor=\n{successor_state}')
+                        node = self.expand(node=node, action=action)
                     except pachi_py.IllegalMove:
                         node.debug(action)
                         six.reraise(*sys.exc_info())
@@ -96,26 +116,16 @@ class MCTSPlayer(Player):
             # 3. carry out simulation
             reward = self.simulate(node)
             # 4. back up
-            for node, action in path:
-                node.visit_counts[action] += 1
-                player_reward = reward if node.state.color == pachi_py.BLACK else (reward * (-1.0))
-                node.sum_action_values[action] += player_reward
+            self.backup(path, reward)
         # select the action from root node statistics
-        logging.debug(self.root_node.sum_action_values)
-        if self.num_moves <= self.config.mcts_tao_threshold:
-            probabilities = self.root_node.visit_counts/np.sum(self.root_node.visit_counts)
-            action = np.random.choice(self.config.action_space_size, size=1, p=probabilities)[0]
-        else:
-            action = np.argmax(self.root_node.visit_counts)
+        action = self.after_rollout(root_node)
         # TODO: reuse root?
-        self.root_node = None
         return action
 
     def reset(self, board):
-        self.root_node = None
         self.num_moves = 0
 
-    def next_action(self, state: GoState, prev_state: GoState, prev_action):
+    def _next_action(self, state: GoState, prev_state: GoState, prev_action):
         self.num_moves += 1
         return self.search(state)
 

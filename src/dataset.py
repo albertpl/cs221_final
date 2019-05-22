@@ -6,21 +6,9 @@ from tqdm import tqdm
 import time
 import yaml
 
+from feature import create_batch_fn
 from game_record import GoGameRecord
 from model_config import ModelConfig
-
-
-class BatchInput(object):
-    """ represents batch data """
-    def __init__(self):
-        self.batch_xs = None
-        self.batch_ys = None
-
-
-class BatchOutput(object):
-    """represents batch output data"""
-    def __init__(self):
-        self.result = None
 
 
 class Dataset(object):
@@ -32,6 +20,7 @@ class Dataset(object):
         self.xs, self.ys = None, None
         self.game_records = []
         self.ply_indices = []
+        self.batch_fn = create_batch_fn(config)
         return
 
     def __len__(self):
@@ -39,24 +28,6 @@ class Dataset(object):
 
     def shuffle_data(self):
         random.shuffle(self.ply_indices)
-
-    def load_samples(self, ply_indices):
-        """ load training samples from game record """
-        config = self.config
-        depth = config.tree_depth
-        batch_size = len(ply_indices)
-        batch = BatchInput()
-        batch.batch_xs = np.zeros((batch_size, config.board_size, config.board_size, config.feature_channel))
-        action_distribution = np.zeros((batch_size, config.action_space_size), dtype=float)
-        value_target = np.zeros(batch_size, dtype=float)
-        for b, (game_index, ply_index) in enumerate(ply_indices):
-            assert game_index < len(self.game_records)
-            game_record = self.game_records[game_index]
-            assert game_record is not None
-            batch.batch_xs[b, ...] = game_record.feature(depth=depth, ply_index=ply_index)
-            action_distribution[b, game_record.action(ply_index=ply_index)] = 1.0
-            value_target[b] = game_record.outcome
-        return batch.batch_xs, {'policy': action_distribution, 'value': value_target}
 
     @classmethod
     def update_index_file(cls, config: ModelConfig, in_root: Path):
@@ -131,7 +102,7 @@ class Dataset(object):
                 else:
                     batch_plys = self.ply_indices[start:end]
                 assert len(batch_plys) == batch_size, f'len(batch_plys)={len(batch_plys)} <> {batch_size}'
-                yield self.load_samples(batch_plys)
+                yield self.batch_fn(config=self.config, game_records=self.game_records, ply_indices=batch_plys)
             if not loop:
                 break
 
@@ -178,5 +149,4 @@ class DatasetContainer(object):
             if dataset_path.exists():
                 setattr(container, sub_dir, Dataset.from_path(config, dataset_path))
         return container
-
 

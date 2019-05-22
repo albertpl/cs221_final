@@ -1,18 +1,23 @@
+from pathlib import Path
 import yaml
 
 
 class ModelConfig(object):
     seed = 23
     # GO game configurations
-    komi = 0
+    komi = 0.5
     board_size = 9
     action_space_size = board_size * board_size + 2
     game_index_file = 'game_index.yaml'
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
-    player_policy = ''
+    model_name = ''
     max_time_step_per_episode = 10000
     print_board = 0
+    black_player_record_path = ''
+    white_player_record_path = ''
+    game_result_path = ''
+    game_record_policy = ''
     # patchi
     pachi_timestr = '_2400'
     # parameters for MCTS
@@ -36,16 +41,12 @@ class ModelConfig(object):
     dropout_keep_prob = 1.0
     early_stop = 100000
     use_augmentation = False
-    model_name = ''
     print_n_per_epoch = 1000
     iterations_per_epoch = 1
     allow_weight_init = True
-    # paths
-    game_record_path = ''
-    game_result_path = ''
-    learner_log_dir = '/tmp/log_dir/'
-    weight_root = '/tmp/weights/'
-    dataset_path = '/tmp/go_games/'
+    learner_log_dir = ''
+    weight_root = ''
+    dataset_path = ''
 
     def __init__(self, **kwargs):
         if kwargs is not None:
@@ -53,6 +54,13 @@ class ModelConfig(object):
 
     def __repr__(self):
         return self.to_string(verbose=False)
+
+    @classmethod
+    def from_yaml(cls, yaml_file):
+        assert Path(yaml_file).is_file(), f'{yaml_file}'
+        with open(yaml_file, 'r') as in_fd:
+            yaml_dict = yaml.load(in_fd)
+        return cls(**yaml_dict)
 
     def to_string(self, verbose=False, delimit='___'):
         s = ''
