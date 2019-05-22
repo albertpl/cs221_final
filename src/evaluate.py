@@ -30,6 +30,7 @@ def evaluate():
     config.weight_root = args.weight_root
     config.game_record_path = args.record_path
     config.game_result_path = f'{args.result_path}/{args.black_policy}_vs_{args.white_policy}/'
+    print(config)
     env = GoEnv(config,
                 create_agent(config, args.black_policy),
                 create_agent(config, args.white_policy))
@@ -39,6 +40,7 @@ def evaluate():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-l', dest='log_level', default='info', help="logging level: {debug, info, error}")
+    ModelConfig().add_to_parser(parser)
     subparser = parser.add_subparsers(dest='command', title='sub_commands', description='valid commands')
     subparser.required = True
 

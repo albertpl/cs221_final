@@ -2,10 +2,12 @@ import logging
 import math
 import numpy as np
 import pachi_py
+from tqdm import tqdm
+import six
+import sys
 
-from environment import GoState, GoEnv
+from environment import GoState, GoEnv, pass_action, resign_action
 from model_config import ModelConfig
-from random_player import RandomPlayer
 from player import Player
 
 
@@ -19,17 +21,29 @@ class SearchTreeNode(object):
         self.children = [None] * config.action_space_size
         self.c_puct = config.mcts_c_puct
         # punish illegal actions
-        self.illegal_cost = np.ones(config.action_space_size, dtype=float) * 1.0e5
-        self.illegal_cost[np.array(state.all_legal_actions())] = 0.0
+        self.illegal_cost = np.ones(config.action_space_size, dtype=float) * 1.0e6
+        legal_actions = state.all_legal_actions()
+        self.illegal_cost[np.array(legal_actions)] = 0.0
         # default to uniform
         self.prior_probabilities = np.ones(config.action_space_size, dtype=float)
+        self.config = config
 
     def next_action(self):
         """ UCB policy """
         action_values = self.sum_action_values/(self.visit_counts + 1e-8) - self.illegal_cost
         ucb = action_values \
             + self.c_puct * math.sqrt(np.sum(self.visit_counts)) * self.prior_probabilities/(1 + self.visit_counts)
-        return int(np.argmax(ucb))
+        action = int(np.argmax(ucb))
+        return action
+
+    def debug(self, action):
+        print(f'illegal action: {action}, cost={self.illegal_cost}')
+        action_values = self.sum_action_values/(self.visit_counts + 1e-8) - self.illegal_cost
+        print(f'action values = \n{action_values}')
+        ucb = action_values + \
+            self.c_puct * math.sqrt(np.sum(self.visit_counts)) * self.prior_probabilities/(1 + self.visit_counts)
+        print(f'ucb = \n{ucb}')
+        return
 
 
 class MCTSPlayer(Player):
@@ -40,9 +54,19 @@ class MCTSPlayer(Player):
         self.num_moves = 0
 
     def simulate(self, node):
-        # default roll out policy: random
-        env = GoEnv(self.config, black_player=RandomPlayer(self.config), white_player=RandomPlayer(self.config))
-        return env.play_game(node.state)['reward']
+        if self.config.mcts_simulation_policy == 'pachi':
+            # for testing only
+            from pachi_player import PachiPlayer
+            black_player, white_player = PachiPlayer(self.config), PachiPlayer(self.config)
+            black_player.reset(node.state.board.clone())
+            white_player.reset(node.state.board.clone())
+        else:
+            # default roll out policy: random
+            from random_player import RandomPlayer
+            black_player, white_player = RandomPlayer(self.config), RandomPlayer(self.config)
+        env = GoEnv(self.config, black_player=black_player, white_player=white_player)
+        result, _, _ = env.play_game(node.state)
+        return result['reward']
 
     def search(self, state):
         root_state = state.clone()
@@ -59,10 +83,14 @@ class MCTSPlayer(Player):
                 logging.debug(f'[{i}] action={action}')
                 if node.children[action] is None:
                     # 2. expand the leaf with successor state
-                    successor_state = node.state.clone().act(action)
-                    successor_node = SearchTreeNode(self.config, successor_state, parent=node)
-                    node.children[action] = successor_node
-                    logging.debug(f'expanding to successor=\n{successor_state}')
+                    try:
+                        successor_state = node.state.clone().act(action)
+                        successor_node = SearchTreeNode(self.config, successor_state, parent=node)
+                        node.children[action] = successor_node
+                        logging.debug(f'expanding to successor=\n{successor_state}')
+                    except pachi_py.IllegalMove:
+                        node.debug(action)
+                        six.reraise(*sys.exc_info())
                     break
                 node = node.children[action]
             # 3. carry out simulation
@@ -76,7 +104,7 @@ class MCTSPlayer(Player):
         logging.debug(self.root_node.sum_action_values)
         if self.num_moves <= self.config.mcts_tao_threshold:
             probabilities = self.root_node.visit_counts/np.sum(self.root_node.visit_counts)
-            action = np.random.choice(self.config.action_space_size, size=1, p=probabilities)
+            action = np.random.choice(self.config.action_space_size, size=1, p=probabilities)[0]
         else:
             action = np.argmax(self.root_node.visit_counts)
         # TODO: reuse root?

@@ -1,36 +1,33 @@
-def add_to_parser(config_obj, parser):
-    for k in config_obj.next_key():
-        attr_type = type(getattr(config_obj, k))
-        parser.add_argument('--'+k, dest=k, type=attr_type)
-    return
+import yaml
 
 
 class ModelConfig(object):
     seed = 23
     # GO game configurations
-    komi = 5.5
+    komi = 0
     board_size = 9
     action_space_size = board_size * board_size + 2
     game_index_file = 'game_index.yaml'
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
     player_policy = ''
-    max_time_step_per_episode = 1000
+    max_time_step_per_episode = 10000
     print_board = 0
     # patchi
     pachi_timestr = '_2400'
     # parameters for MCTS
-    mcts_c_puct = 1.0
-    mcts_num_rollout = 100
-    mcts_tao_threshold = 5  # following AGZ, before this threshold, tao=1, after, infinitesimal
+    mcts_c_puct = 0.2
+    mcts_num_rollout = 1000
+    mcts_tao_threshold = 20  # following AGZ, before this threshold, tao=1, after, infinitesimal
+    mcts_simulation_policy = ''  # default is random, 'pachi' for testing
     # parameters for NN model
     fc1_dim = 256
     fc2_dim = 128
     batch_size = 32
-    batch_size_inference = 64
+    batch_size_inference = 32
     # hyper parameters for training
     train_first_n_samples = 0
-    training_epochs = 100
+    training_epochs = 10
     save_weight_on_best_train = True
     lr_scheduler = 'clr_exp_range'
     lr_reset_every_epochs = 10
@@ -45,7 +42,7 @@ class ModelConfig(object):
     allow_weight_init = True
     # paths
     game_record_path = ''
-    game_result_path = '/tmp/game_result'
+    game_result_path = ''
     learner_log_dir = '/tmp/log_dir/'
     weight_root = '/tmp/weights/'
     dataset_path = '/tmp/go_games/'
@@ -77,3 +74,16 @@ class ModelConfig(object):
 
     def to_dict(self):
         return {k: getattr(self, k) for k in self.next_key()}
+
+    def write_to_file(self, out_file):
+        out_dict = self.to_dict()
+        with open(out_file, 'w') as out_fd:
+            yaml.dump(out_dict, out_fd)
+
+    def add_to_parser(self, parser):
+        for k in self.next_key():
+            attr_type = type(getattr(self, k))
+            parser.add_argument('--'+k, dest=k, type=attr_type)
+        return
+
+

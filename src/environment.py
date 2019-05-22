@@ -153,20 +153,25 @@ class GoEnv(object):
         outfile.write(repr(state) + '\n')
         return outfile
 
-    def play_game(self, curr_state, prev_state=None, prev_action=None, show_result=True):
+    def play_game(self, curr_state, prev_state=None, prev_action=None, show_action=False):
         num_ply = 0
-        black_pairs, white_pairs = [], []
+        black_plays, white_plays = [], []
         start_time = time.time()
         while not curr_state.board.is_terminal:
             if curr_state.color == pachi_py.BLACK:
                 current_player = self.black_player
-                pairs = black_pairs
+                plays = black_plays
             else:
                 current_player = self.white_player
-                pairs = white_pairs
+                plays = white_plays
             encoded_board = curr_state.board.encode() if self.config.game_record_path else None
             action = current_player.next_action(curr_state, prev_state, prev_action)
-            pairs.append((encoded_board, action))
+            if show_action:
+                print(f'{curr_state.color}: {action}')
+            if action == pass_action(self.config.board_size):
+                break
+            if self.config.game_record_path:
+                plays.append((encoded_board, action))
             try:
                 next_state = curr_state.act(action)
                 prev_state, prev_action = curr_state, action
@@ -175,49 +180,42 @@ class GoEnv(object):
             except pachi_py.IllegalMove:
                 six.reraise(*sys.exc_info())
         game_time = time.time() - start_time
-        # We're in a terminal state. Reward is 1 if won, -1 if lost
-        if not curr_state.board.is_terminal:
-            print('game is out of time')
-            self.render(curr_state)
         # komi is zero when the board is initialized
         # the official score is: komi + white score - black score + handicap (not used)
         score = self.config.komi + curr_state.board.official_score
-        if score > 0:
-            reward = -1.0
-            pairs = white_pairs
-            win_player = pachi_py.WHITE
-        else:
-            reward = 1.0
-            pairs = black_pairs
-            win_player = pachi_py.BLACK
-        if self.config.game_record_path:
-            game_record = GoGameRecord.from_encoded_board(self.config, pairs, win_player)
-            game_record.write_to_path(self.config.game_record_path)
-        if self.config.print_board > 0:
-            self.render(curr_state)
-        if show_result:
-            logging.info(f'num_plys={num_ply}, reward={reward}, score={curr_state.board.official_score}')
-        return {
-            'reward': reward,
+        result = {
+            'reward': -1.0 if score > 0 else 1.0,
             'score': score,
             'plys': num_ply,
             'time': game_time,
         }
+        return result, curr_state, white_plays if score > 0 else black_plays
 
     def play(self, num_games=1):
         results = []
-        for _ in tqdm(range(num_games)):
+        for i in tqdm(range(num_games)):
             curr_state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
             self.black_player.reset(curr_state.board)
             self.white_player.reset(curr_state.board)
-            results.append(self.play_game(curr_state))
+            result, last_state, plays = self.play_game(curr_state, show_action=False)
+            results.append(result)
+            if self.config.game_record_path:
+                reward = result['reward']
+                game_record = GoGameRecord.from_encoded_board(self.config,
+                                                              plays,
+                                                              pachi_py.BLACK if reward > 0 else pachi_py.WHITE)
+                game_record.write_to_path(self.config.game_record_path)
+            logging.info(f'game {i}: {result}')
+            if self.config.print_board > 0:
+                self.render(last_state)
         results_pd = pd.DataFrame(results)
+        rewards = results_pd['reward'].values
+        logging.info(f'total games = {num_games}, black win rate = {np.sum(rewards>0)/num_games}')
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)
             out_path.mkdir(exist_ok=True, parents=True)
-            num_result = len([out_path.glob('*.csv')])
+            num_result = len([out_path.glob('*.csv')]) + 1
             results_pd.to_csv(out_path/f'game_{num_result}.csv')
-        rewards = results_pd['reward'].values
-        logging.info(f'total games = {num_games}, black win rate = {np.sum(rewards>0)/num_games}')
+            self.config.write_to_file(out_path/f'config_{num_result}.yaml')
         return
 

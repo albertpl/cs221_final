@@ -47,8 +47,6 @@ class NetworkPlayer(object):
         # return the most preferred legal action
         legal_coords = state.board.get_legal_coords(state.color)
         for action in np.argsort(probabilities)[::-1]:
-            logging.debug(f'action={action}')
-            logging.debug(f'action={action}, probability={probabilities[action]}')
             coord = action_to_coord(state.board, action)
             if coord in legal_coords:
                 return action
