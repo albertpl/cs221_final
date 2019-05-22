@@ -1,0 +1,89 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2019
+
+% ready for submission
+% \usepackage{neurips_2019}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+     \usepackage[preprint]{neurips_2019}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2019}
+
+% to avoid loading the natbib package, add option nonatbib:
+%     \usepackage[nonatbib]{neurips_2019}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{fancyhdr}
+\usepackage{textcomp}
+\usepackage{lmodern}% http://ctan.org/pkg/lm
+\usepackage[table,x11names,svgnames]{xcolor}
+\usepackage{soul}
+\usepackage{parskip}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{afterpage}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{tablefootnote}
+\usepackage{microtype}
+\usepackage{textcomp}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{subcaption}
+\usepackage{verbatim}
+\usepackage[htt]{hyphenat}
+
+\title{Learn to play Go}
+
+\author{%
+  Albert Liu \\
+  Department of Computer Science\\
+  Stanford University\\
+  \texttt{albertpl@stanford.edu} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\section{Infrastructure}
+Describe the pipeline
+
+\section{Approach}
+\subsection{Baseline}
+    We write a random agent which select legal move randomly, except that 
+
+\subsection{Oracle}
+    Describe why Pachi is a good oracle.
+
+\subsection{Monte Carlo Tree Search}
+Describe UCT algorithm. pro and con.
+
+\section{Error analysis}
+Analyze why it is not able to beat Pachi. 
+
+
+\bibliography{reference} 
+\bibliographystyle{unsrt}
+
+\end{document}
