@@ -1,12 +1,13 @@
 from environment import GoState
+import numpy as np
 from player import Player
 
 
 class RandomPlayer(Player):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
+    def __init__(self, config, player, record_path=''):
+        super().__init__(config=config, player=player, record_path=record_path)
 
-    def next_action(self, curr_state: GoState, prev_state, prev_action):
-        return curr_state.random_action()
+    def _next_action(self, curr_state: GoState, prev_state, prev_action):
+        actions = curr_state.all_legal_actions()
+        return np.random.choice(actions)
 

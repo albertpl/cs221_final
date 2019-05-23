@@ -76,8 +76,37 @@ Describe the pipeline
 \subsection{Oracle}
     Describe why Pachi is a good oracle.
 
-\subsection{Monte Carlo Tree Search}
+\subsection{Upper Bound Tree Search with Monte Carlo Rollout}
 Describe UCT algorithm. pro and con.
+
+\subsection{Self-play}
+In order to apply reinforcement learning, we need to collect experiences (i.e. game records). The standard approach is to have agents play against themselves and save the game records. We record the board position at each step perceived by the player, as a 2D matrix encoding player's color, the move of the player, the color of the player and the final reward (-1 if white player wins, +1 if black player wins).
+
+Describe UCT algorithm. pro and con.
+\subsection{Actor-critic with baseline}
+The policy gradient based methods, such as REINFORCE [TODO] and actor-critic [TODO], allow us to learn stochastic policy naturally. For our episodic cases, we define the objective function, $J(\theta)$, to be the start value of any state $S$, following our parameterized policy function $\pi_{\theta}$ which is approximated by a deep neural network, i.e.,  $J(\theta) = V_{\pi_{\theta}}(S)$. By Policy Gradient Theorem [TODO], we can compute the gradient as
+$$ \nabla_{\theta} J(\theta) =  \mathbb E_{\pi_{\theta}} [ 
+Q_{\pi_{\theta}}(S_t, A_t)] 
+\nabla_{\theta} \log \pi_{\theta}(A_t|S_t) 
+$$
+
+REINFORCE method uses Monte Carlo method to give unbiased sample $G_t$ for $Q_{\pi_{\theta}}(S_t, A_t)]$ and the update rule is
+$$ \theta_{t+1} = \theta_{t} + \alpha 
+G_t 
+\nabla_{\theta} \log \pi_{\theta}(A_t|S_t) 
+$$
+But Monte Carlo gradient typically has high variance and produces slow learning. Actor-critic with baseline is suggested [TODO] to solve such high variance issue. Let advantage function $
+A_{\pi_{\theta}}(S_t, A_t) 
+= 
+Q_{\pi_{\theta}}(S_t, A_t)  - 
+V_{\pi_{\theta}}(S_t) 
+$, the update rule is
+$$ \theta_{t+1} = \theta_{t} + \alpha 
+A_{\pi_{\theta}}(S_t, A_t) 
+\nabla_{\theta} \log \pi_{\theta}(A_t|S_t) 
+$$
+
+\subsection{Tree Search guided with DNN}
 
 \section{Error analysis}
 Analyze why it is not able to beat Pachi. 

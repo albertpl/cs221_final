@@ -47,9 +47,8 @@ class SearchTreeNode(object):
 
 
 class MCTSPlayer(Player):
-    def __init__(self, config: ModelConfig):
-        super().__init__()
-        self.config = config
+    def __init__(self, config: ModelConfig, player, record_path):
+        super().__init__(config=config, player=player, record_path=record_path)
         self.root_node = None
         self.num_moves = 0
 
@@ -63,9 +62,10 @@ class MCTSPlayer(Player):
         else:
             # default roll out policy: random
             from random_player import RandomPlayer
-            black_player, white_player = RandomPlayer(self.config), RandomPlayer(self.config)
+            black_player = RandomPlayer(self.config, player=pachi_py.BLACK, record_path='')
+            white_player = RandomPlayer(self.config, player=pachi_py.WHITE, record_path='')
         env = GoEnv(self.config, black_player=black_player, white_player=white_player)
-        result, _, _ = env.play_game(node.state)
+        result, *_ = env.play_game(node.state)
         return result['reward']
 
     def search(self, state):
@@ -115,7 +115,7 @@ class MCTSPlayer(Player):
         self.root_node = None
         self.num_moves = 0
 
-    def next_action(self, state: GoState, prev_state: GoState, prev_action):
+    def _next_action(self, state: GoState, prev_state: GoState, prev_action):
         self.num_moves += 1
         return self.search(state)
 

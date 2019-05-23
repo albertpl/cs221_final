@@ -38,6 +38,7 @@ def build_resnet(config: ModelConfig):
 
 
 def create_model(config: ModelConfig):
+    assert config.model_name in ('policy_with_baseline', ), config.model_name
     model = build_resnet(config)
     # model = build_simple_model(config)
     model.compile(optimizer=Adam(lr=1e-4),

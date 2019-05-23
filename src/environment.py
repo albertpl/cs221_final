@@ -51,6 +51,11 @@ def str_to_action(board, s):
     return coord_to_action(board, board.str_to_coord(s.encode()))
 
 
+def opponent(player):
+    assert player in (pachi_py.BLACK, pachi_py.WHITE)
+    return pachi_py.WHITE if player == pachi_py.BLACK else pachi_py.BLACK
+
+
 class GoState(object):
     '''
     Go game state. Consists of a current player and a board.
@@ -84,11 +89,8 @@ class GoState(object):
         return GoState(self.board.clone(), self.color)
 
     def all_legal_actions(self):
-        return [coord_to_action(self.board, c) for c in self.board.get_legal_coords(self.color)]
-
-    def random_action(self):
-        _, coord = self.board.play_random(self.color, return_action=True)
-        return coord_to_action(self.board, coord)
+        # filter_suicides = True
+        return [coord_to_action(self.board, c) for c in self.board.get_legal_coords(self.color, True)]
 
     def __repr__(self):
         return 'To play: {}\n{}'.format(six.u(pachi_py.color_to_str(self.color)), self.board.__repr__().decode())
@@ -153,25 +155,18 @@ class GoEnv(object):
         outfile.write(repr(state) + '\n')
         return outfile
 
-    def play_game(self, curr_state, prev_state=None, prev_action=None, show_action=False):
+    def play_game(self, curr_state, prev_state=None, prev_action=None):
         num_ply = 0
-        black_plays, white_plays = [], []
         start_time = time.time()
         while not curr_state.board.is_terminal:
             if curr_state.color == pachi_py.BLACK:
                 current_player = self.black_player
-                plays = black_plays
             else:
                 current_player = self.white_player
-                plays = white_plays
-            encoded_board = curr_state.board.encode() if self.config.game_record_path else None
             action = current_player.next_action(curr_state, prev_state, prev_action)
-            if show_action:
-                print(f'{curr_state.color}: {action}')
+            assert action is not None
             if action == pass_action(self.config.board_size):
                 break
-            if self.config.game_record_path:
-                plays.append((encoded_board, action))
             try:
                 next_state = curr_state.act(action)
                 prev_state, prev_action = curr_state, action
@@ -179,17 +174,18 @@ class GoEnv(object):
                 num_ply += 1
             except pachi_py.IllegalMove:
                 six.reraise(*sys.exc_info())
+        score = self.config.komi + curr_state.board.official_score
+        reward = -1.0 if score > 0 else 1.0
         game_time = time.time() - start_time
         # komi is zero when the board is initialized
         # the official score is: komi + white score - black score + handicap (not used)
-        score = self.config.komi + curr_state.board.official_score
         result = {
-            'reward': -1.0 if score > 0 else 1.0,
+            'reward': reward,
             'score': score,
             'plys': num_ply,
             'time': game_time,
         }
-        return result, curr_state, white_plays if score > 0 else black_plays
+        return result, curr_state
 
     def play(self, num_games=1):
         results = []
@@ -197,17 +193,14 @@ class GoEnv(object):
             curr_state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
             self.black_player.reset(curr_state.board)
             self.white_player.reset(curr_state.board)
-            result, last_state, plays = self.play_game(curr_state, show_action=False)
+            result, last_state = self.play_game(curr_state)
             results.append(result)
-            if self.config.game_record_path:
-                reward = result['reward']
-                game_record = GoGameRecord.from_encoded_board(self.config,
-                                                              plays,
-                                                              pachi_py.BLACK if reward > 0 else pachi_py.WHITE)
-                game_record.write_to_path(self.config.game_record_path)
             logging.info(f'game {i}: {result}')
             if self.config.print_board > 0:
                 self.render(last_state)
+            reward = result['reward']
+            self.black_player.end_game(reward)
+            self.white_player.end_game(reward)
         results_pd = pd.DataFrame(results)
         rewards = results_pd['reward'].values
         logging.info(f'total games = {num_games}, black win rate = {np.sum(rewards>0)/num_games}')

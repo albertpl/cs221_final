@@ -9,13 +9,16 @@ import tensorflow as tf
 from typing import Optional
 from tqdm import tqdm
 
-from dataset import Dataset, DatasetContainer, BatchInput, BatchOutput
+from dataset import Dataset, DatasetContainer
+from batch import BatchInput, BatchOutput
 from keras_callback_lr_scheduler import KerasCBLRScheduler
 from keras_callback_tf_summary import KerasCBSummaryWriter
 from model_config import ModelConfig
 
 
 class KerasModelController(object):
+    __controller = None
+
     def __init__(self, config: ModelConfig):
         super().__init__()
         self.config = config
@@ -33,7 +36,6 @@ class KerasModelController(object):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         set_session(self.sess)
-
         self.load()
         self.summary_writer = KerasCBSummaryWriter(self.config) \
             if self.config.learner_log_dir else None
@@ -41,10 +43,17 @@ class KerasModelController(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # prefer garbage collection
-        if self.summary_writer:
+        if hasattr(self, 'summary_writer') and self.summary_writer:
             self.summary_writer = None
-        if self.sess:
+        if hasattr(self, 'sesss') and self.sess:
             self.sess = None
+
+    @classmethod
+    def controller(cls, config):
+        if cls.__controller is not None:
+            return cls.__controller
+        cls.__controller = KerasModelController(config)
+        return cls.__controller
 
     def load(self):
         from model import create_model
