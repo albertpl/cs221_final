@@ -9,12 +9,13 @@
 
 % to compile a preprint version, e.g., for submission to arXiv, add add the
 % [preprint] option:
-     \usepackage[preprint]{neurips_2019}
+\usepackage[preprint]{neurips_2019}
+\bibliographystyle{unsrt}
 
 % to compile a camera-ready version, add the [final] option, e.g.:
 %     \usepackage[final]{neurips_2019}
 
-% to avoid loading the natbib package, add option nonatbib:
+% to avoid loading the natbib package, add option nonatbibnatbib:
 %     \usepackage[nonatbib]{neurips_2019}
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
@@ -67,17 +68,21 @@
 \maketitle
 
 \section{Infrastructure}
-Describe the pipeline
+As illustrated in Figure \ref{fig:env}, our simulator includes a Go gameplay engine, which is based on Pachi \cite{baudivs2011pachi}, an open source Go framework. We choose Pachi due to its efficiency and simple APIs. Each agent is given a 2D numpy array (e.g. $19 \times 19$), representing current board with each element encoding the color of stone, 0 for empty, 1 for black stone and 2 for white stone. Then each agent returns the next move to play, encoded as position of the board (e.g. E4) and a pass action. 
+Each agent can optionally persist the game records, numpy arrays that hold the board representation, moves and etc., to disk, which are used as experiences for the reinforcement learning agents. We use Keras as our deep learning framework. 
 
 \section{Approach}
+Minimax search or AlphaBeta search is intractable due to enormous search space. Instead,  we start with Monte Carlo Tree Search \cite{coulom2006efficient}. Then we explore policy gradient based methods. Finally we will combine tree search and function approximation approach, following AlphaGoZero \cite{silver2017masteringalphagozero}.  But first, we discuss the baseline and oracle.
+
 \subsection{Baseline}
-    We write a random agent which select legal move randomly, except that 
+For baseline, we write a random agent which selects legal move randomly, except that it won't commit suicide, i.e. filling in its own eye, which is an empty position where all adjacent positions and three out of four diagonally adjacent positions are its stones (or edges).
 
 \subsection{Oracle}
-    Describe why Pachi is a good oracle.
+We use Pachi built-in \textit{UCT} engine as our oracle which is said to achieve highest amateur expect level (KGS 7 dan) on $9 \times 9$ or KGS 2d rank on reasonable hardware, where dan is expert Go ranking, from 1 to 7 (low to high). Technically the \textit{UCT} engine implements RAVE \cite{gelly2007combining}, instead of classic UCT. This engine incorporates lots of heuristics and predefined patterns above the basic Go rules, e.g. self-atari detector and ladder testing \cite{gelly2007combining}.
 
-\subsection{Upper Bound Tree Search with Monte Carlo Rollout}
-Describe UCT algorithm. pro and con.
+\subsection{Monte Carlo Tree Search}
+The MCTS 
+Each node in the game tree is a board representation and the player.
 
 \subsection{Self-play}
 In order to apply reinforcement learning, we need to collect experiences (i.e. game records). The standard approach is to have agents play against themselves and save the game records. We record the board position at each step perceived by the player, as a 2D matrix encoding player's color, the move of the player, the color of the player and the final reward (-1 if white player wins, +1 if black player wins).
@@ -112,7 +117,16 @@ $$
 Analyze why it is not able to beat Pachi. 
 
 
+
+\section{Figures, tables, references}
+\subsection{Figures}
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{simulator}
+\caption{Environment setup}
+\label{fig:env}
+\end{figure}
+
 \bibliography{reference} 
-\bibliographystyle{unsrt}
 
 \end{document}
