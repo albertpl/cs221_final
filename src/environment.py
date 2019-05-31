@@ -207,7 +207,7 @@ class GoEnv(object):
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)
             out_path.mkdir(exist_ok=True, parents=True)
-            num_result = len([out_path.glob('*.csv')]) + 1
+            num_result = len(list(out_path.glob('*.csv'))) + 1
             out_file = out_path/f'game_{num_result}.csv'
             print(f'writing result to {out_file}')
             results_pd.to_csv(out_file)
