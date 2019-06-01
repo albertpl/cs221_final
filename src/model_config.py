@@ -5,13 +5,13 @@ import yaml
 class ModelConfig(object):
     seed = 23
     # GO game configurations
-    komi = 0
+    komi = 0.5
     board_size = 9
     action_space_size = board_size * board_size + 2
     game_index_file = 'game_index.yaml'
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
-    player_policy = ''
+    model_name = ''
     max_time_step_per_episode = 10000
     print_board = 0
     black_player_record_path = ''
@@ -41,7 +41,6 @@ class ModelConfig(object):
     dropout_keep_prob = 1.0
     early_stop = 100000
     use_augmentation = False
-    model_name = 'policy_with_baseline'
     print_n_per_epoch = 1000
     iterations_per_epoch = 1
     allow_weight_init = True

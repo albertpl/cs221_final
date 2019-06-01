@@ -6,6 +6,7 @@ from tqdm import tqdm
 import time
 import yaml
 
+from feature import create_batch_fn
 from game_record import GoGameRecord
 from model_config import ModelConfig
 
@@ -19,6 +20,7 @@ class Dataset(object):
         self.xs, self.ys = None, None
         self.game_records = []
         self.ply_indices = []
+        self.batch_fn = create_batch_fn(config)
         return
 
     def __len__(self):
@@ -100,7 +102,7 @@ class Dataset(object):
                 else:
                     batch_plys = self.ply_indices[start:end]
                 assert len(batch_plys) == batch_size, f'len(batch_plys)={len(batch_plys)} <> {batch_size}'
-                yield self.load_samples(batch_plys)
+                yield self.batch_fn(config=self.config, game_records=self.game_records, ply_indices=batch_plys)
             if not loop:
                 break
 

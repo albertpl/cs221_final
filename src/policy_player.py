@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 
 from batch import BatchInput
-from environment import GoState, GoEnv, resign_action
+from environment import GoState, GoEnv, resign_action, pass_action
 import feature
 from game_record import GoGameRecord
 from model_config import ModelConfig
@@ -18,10 +18,9 @@ class PolicyPlayer(Player):
         config.allow_weight_init = True
         config.learner_log_dir = ''
         config.batch_size_inference = 1
+        config.model_name = 'policy_gradient'
         self.model_controller = KerasModelController.controller(config)
-        self.boards = []
-        self.actions = []
-        self.estimated_value = []
+        self.boards, self.actions, self.estimated_value = [], [], []
         self.model_controller.__enter__()
 
     def __del__(self):
@@ -29,12 +28,14 @@ class PolicyPlayer(Player):
             self.model_controller.__exit__(None, None, None)
 
     def reset(self, board):
-        self.boards = []
+        self.boards, self.actions, self.estimated_value = [], [], []
 
     def end_game(self, reward):
         if self.record_path and len(self.boards):
             assert len(self.boards) == len(self.actions)
+            assert len(self.estimated_value) == len(self.actions)
             record = GoGameRecord(config=self.config)
+            record.player = self.player
             record.reward = reward
             record.moves = self.actions
             record.boards = self.boards
@@ -58,14 +59,19 @@ class PolicyPlayer(Player):
         probabilities = batch_output.result[0][0]
         # return the most preferred legal action
         legal_actions = set(state.all_legal_actions())
-        sampled_actions = np.random.choice(self.config.action_space_size,
-                                           size=self.config.action_space_size,
-                                           replace=False,
-                                           p=probabilities)
-        action = resign_action(board_size)
-        for action in sampled_actions:
-            if action in legal_actions:
-                break
+        sampled_size = min(self.config.action_space_size, np.sum(probabilities > 0.0))
+        action = pass_action(board_size)
+        if sampled_size > 0:
+            sampled_actions = np.random.choice(self.config.action_space_size,
+                                               size=sampled_size,
+                                               replace=False,
+                                               p=probabilities)
+            for sampled_action in sampled_actions:
+                if sampled_action in legal_actions:
+                    action = sampled_action
+                    break
+        else:
+            print('no possible moves')
         self.actions.append(action)
         self.estimated_value.append(batch_output.result[1][0])
         return action

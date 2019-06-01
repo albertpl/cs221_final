@@ -7,13 +7,14 @@ from model_config import ModelConfig
 
 
 class GoGameRecord(object):
-    persisted_fields = ('boards', 'player', 'moves', 'reward', 'values')
+    persisted_fields = ('boards', 'player', 'moves', 'reward', 'values', 'action_distributions')
     """keep record of the moves from winner's perspective"""
     def __init__(self, config: ModelConfig):
         self.config = config
         self.moves = []  # move for current board, list of scalar
         self.boards = []  # list of np.ndarray (board_size, board_size), each element is encoded player
-        self.values = []  # values  list of scalar
+        self.values = []  # [optional] values  list of scalar
+        self.action_distributions = []  # [optional] list of np.ndarray (action space size, )
         self.player = pachi_py.EMPTY
         self.reward = 0  # reward from black player's perspective
 
@@ -73,6 +74,7 @@ cdef int _NUM_FEATURE_CHANNELS = 3
         for k in cls.persisted_fields:
             assert k in in_dict, f'{k} not in {in_file}'
             setattr(game_record, k, in_dict[k])
+        assert len(game_record.boards) == len(game_record.moves)
         return game_record
 
     def write_to_path(self, out_path):
@@ -97,6 +99,11 @@ cdef int _NUM_FEATURE_CHANNELS = 3
 
     def action(self, ply_index):
         assert ply_index < len(self)
-        return self.moves[-1]
+        if ply_index < len(self.action_distributions):
+            # distribution is present
+            return self.action_distributions[ply_index]
+        action_distribution = np.zeros(self.config.action_space_size, dtype=float)
+        action_distribution[self.moves[ply_index]] = 1.0
+        return action_distribution
 
 

@@ -52,7 +52,7 @@ def str_to_action(board, s):
 
 
 def opponent(player):
-    assert player in (pachi_py.BLACK, pachi_py.WHITE)
+    assert player in (pachi_py.BLACK, pachi_py.WHITE), player
     return pachi_py.WHITE if player == pachi_py.BLACK else pachi_py.BLACK
 
 
@@ -195,7 +195,8 @@ class GoEnv(object):
             self.white_player.reset(curr_state.board)
             result, last_state = self.play_game(curr_state)
             results.append(result)
-            logging.info(f'game {i}: {result}')
+            rewards = np.array([r['reward'] for r in results ])
+            logging.debug(f'game {i}: {result}, win rate = {np.sum(rewards>0)/(i+1)}')
             if self.config.print_board > 0:
                 self.render(last_state)
             reward = result['reward']
@@ -203,7 +204,7 @@ class GoEnv(object):
             self.white_player.end_game(reward)
         results_pd = pd.DataFrame(results)
         rewards = results_pd['reward'].values
-        logging.info(f'total games = {num_games}, black win rate = {np.sum(rewards>0)/num_games}')
+        logging.info(f'total games = {num_games},  win rate = {np.sum(rewards>0)/num_games}')
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)
             out_path.mkdir(exist_ok=True, parents=True)

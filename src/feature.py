@@ -29,7 +29,7 @@ def array_to_feature(config, boards, player, ply_index):
     return features
 
 
-def create_batch_from_game_records(config: ModelConfig, game_records, ply_indices):
+def _create_batch_from_game_record(config: ModelConfig, game_records, ply_indices, use_baseline):
     """
     input: board array converted to features (see array_to_feature)
     policy target: greedy action in game record
@@ -48,14 +48,29 @@ def create_batch_from_game_records(config: ModelConfig, game_records, ply_indice
                                                   boards=game_record.boards,
                                                   player=game_record.player,
                                                   ply_index=ply_index)
-        action_distribution[b, game_record.action(ply_index=ply_index)] = 1.0
+        if use_baseline:
+            # R - V(s)
+            action = game_record.moves[ply_index]
+            action_distribution[b, :] = np.zeros(config.action_space_size, dtype=float)
+            action_distribution[b, action] = game_record.reward - game_record.values[ply_index]
+        else:
+            action_distribution[b, :] = game_record.action(ply_index=ply_index)
         value_target[b] = game_record.reward
     return batch.batch_xs, {'policy': action_distribution, 'value': value_target}
 
 
+def create_batch_for_supervised(config: ModelConfig, game_records, ply_indices):
+    return _create_batch_from_game_record(config, game_records, ply_indices, use_baseline=False)
+
+
+def create_batch_for_reinforce_with_baseline(config: ModelConfig, game_records, ply_indices):
+    return _create_batch_from_game_record(config, game_records, ply_indices, use_baseline=True)
+
+
 def create_batch_fn(config: ModelConfig):
     _model_to_fn = {
-        'policy_with_baseline': create_batch_from_game_records,
+        'supervised': create_batch_for_supervised,
+        'policy_gradient': create_batch_for_reinforce_with_baseline,
     }
     assert config.model_name in _model_to_fn, config.model_name
     return _model_to_fn[config.model_name]

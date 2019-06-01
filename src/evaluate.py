@@ -23,6 +23,9 @@ def create_agent(config: ModelConfig, policy, player):
     elif policy == 'mcts':
         from mcts_player import MCTSPlayer
         return MCTSPlayer(config, player=player, record_path=record_path)
+    elif policy == 'nn_guided_mcts':
+        from nn_guided_mcts_player import NNGuidedMCTSPlayer
+        return NNGuidedMCTSPlayer(config, player=player, record_path=record_path)
     else:
         raise ValueError(f'unsupported policy = {config.player_policy}')
 
