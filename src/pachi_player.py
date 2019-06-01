@@ -9,9 +9,8 @@ from player import Player
 
 
 class PachiPlayer(Player):
-    def __init__(self, config: ModelConfig):
-        super().__init__()
-        self.config = config
+    def __init__(self, config: ModelConfig, player, record_path):
+        super().__init__(config=config, player=player, record_path=record_path)
         self.engine = None
 
     def reset(self, board):
@@ -19,7 +18,7 @@ class PachiPlayer(Player):
         # so with a fresh game, we need a fresh engine
         self.engine = pachi_py.PyPachiEngine(board.clone(), six.b('uct'), six.b('threads=1'))
 
-    def next_action(self, state: GoState, prev_state: GoState, prev_action):
+    def _next_action(self, state: GoState, prev_state: GoState, prev_action):
         assert self.engine, 'you need to call reset first to initialize the engine'
         if prev_state is not None:
             assert self.engine.curr_board == prev_state.board, \

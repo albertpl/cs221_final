@@ -9,13 +9,16 @@ import tensorflow as tf
 from typing import Optional
 from tqdm import tqdm
 
-from dataset import Dataset, DatasetContainer, BatchInput, BatchOutput
+from dataset import Dataset, DatasetContainer
+from batch import BatchInput, BatchOutput
 from keras_callback_lr_scheduler import KerasCBLRScheduler
 from keras_callback_tf_summary import KerasCBSummaryWriter
 from model_config import ModelConfig
 
 
 class KerasModelController(object):
+    __controller = None
+
     def __init__(self, config: ModelConfig):
         super().__init__()
         self.config = config
@@ -33,7 +36,6 @@ class KerasModelController(object):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         set_session(self.sess)
-
         self.load()
         self.summary_writer = KerasCBSummaryWriter(self.config) \
             if self.config.learner_log_dir else None
@@ -41,10 +43,17 @@ class KerasModelController(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # prefer garbage collection
-        if self.summary_writer:
+        if hasattr(self, 'summary_writer') and self.summary_writer:
             self.summary_writer = None
-        if self.sess:
+        if hasattr(self, 'sesss') and self.sess:
             self.sess = None
+
+    @classmethod
+    def controller(cls, config):
+        if cls.__controller is not None:
+            return cls.__controller
+        cls.__controller = KerasModelController(config)
+        return cls.__controller
 
     def load(self):
         from model import create_model
@@ -69,12 +78,13 @@ class KerasModelController(object):
         if self.datasets and not force_reload:
             return
         self.datasets = DatasetContainer().from_path(self.config, in_root=self.config.dataset_path)
+        assert isinstance(self.datasets.train, Dataset), \
+            f'fail to load training dataset from {self.config.dataset_path}'
 
     def train(self, **kwargs):
         with self:
             config = self.config
             self.load_datasets()
-            assert isinstance(self.datasets.train, Dataset)
 
             batch_size = min(config.batch_size, self.datasets.train.max_batch_size())
             assert batch_size > 0, f'train data size is {self.datasets.train.max_batch_size()}'
@@ -86,30 +96,37 @@ class KerasModelController(object):
                 augmentation=config.use_augmentation,
                 loop=True,
                 return_raw=True)
-            val_generator = self.datasets.val.batch_generator(
-                config.batch_size_inference,
-                random_sampling=False,
-                augmentation=False,
-                loop=True,
-                return_raw=True)
-            early_stopping = EarlyStopping(monitor='val_loss',
-                                           mode='min',
-                                           patience=config.early_stop)
             model_cp = ModelCheckpoint(filepath=config.weight_root+'/checkpoint.hdf5',
                                        monitor='loss' if config.save_weight_on_best_train else 'val_loss',
                                        mode='min',
                                        save_best_only=True)
-            callbacks = [self.lr_scheduler, early_stopping, model_cp]
+            callbacks = [self.lr_scheduler, model_cp]
             if self.summary_writer:
                 callbacks.append(self.summary_writer)
-            self.model.fit_generator(
-                train_generator,
-                steps_per_epoch=config.iterations_per_epoch,
-                epochs=config.training_epochs,
-                verbose=1,
-                callbacks=callbacks,
-                validation_data=val_generator,
-                validation_steps=len(self.datasets.val)//config.batch_size_inference,
+            if self.datasets.val:
+                val_generator = self.datasets.val.batch_generator(
+                    config.batch_size_inference,
+                    random_sampling=False,
+                    augmentation=False,
+                    loop=True,
+                    return_raw=True)
+                callbacks.append(EarlyStopping(monitor='val_loss', mode='min', patience=config.early_stop))
+                self.model.fit_generator(
+                    train_generator,
+                    steps_per_epoch=config.iterations_per_epoch,
+                    epochs=config.training_epochs,
+                    verbose=1,
+                    callbacks=callbacks,
+                    validation_data=val_generator,
+                    validation_steps=len(self.datasets.val)//config.batch_size_inference,
+                )
+            else:
+                self.model.fit_generator(
+                    train_generator,
+                    steps_per_epoch=config.iterations_per_epoch,
+                    epochs=config.training_epochs,
+                    verbose=1,
+                    callbacks=callbacks
                 )
 
     def evaluate(self, dataset):
