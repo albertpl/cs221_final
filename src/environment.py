@@ -155,6 +155,33 @@ class GoEnv(object):
         outfile.write(repr(state) + '\n')
         return outfile
 
+    @classmethod
+    def game_result(cls, config, curr_state):
+        assert curr_state.board.is_terminal, f'game not over yet. {curr_state}'
+        # komi is zero when the board is initialized
+        # the official score is: komi + white score - black score + handicap (not used)
+        score = config.komi + curr_state.board.official_score
+        black_win = int(score <= 0.0)
+        return black_win, score
+
+    @classmethod
+    def sample_action(cls, config, curr_state, probabilities):
+        board_size = config.board_size
+        legal_actions = curr_state.all_legal_actions()
+        # pass and resign is always legal
+        if len(legal_actions) <= 2:
+            return pass_action(board_size)
+        # return the most preferred legal action
+        probabilities = np.clip(probabilities, a_min=config.min_probability, a_max=1-config.min_probability)
+        mask = np.zeros_like(probabilities)
+        mask[legal_actions] = 1.0
+        probabilities = probabilities * mask
+        sum_of_p = np.sum(probabilities)
+        if sum_of_p == 0:
+            return resign_action(board_size)
+        probabilities = probabilities/sum_of_p
+        return np.random.choice(config.action_space_size, size=1, p=probabilities)[0]
+
     def play_game(self, curr_state, prev_state=None, prev_action=None):
         num_ply = 0
         start_time = time.time()
@@ -165,8 +192,6 @@ class GoEnv(object):
                 current_player = self.white_player
             action = current_player.next_action(curr_state, prev_state, prev_action)
             assert action is not None
-            if action == pass_action(self.config.board_size):
-                break
             try:
                 next_state = curr_state.act(action)
                 prev_state, prev_action = curr_state, action
@@ -174,13 +199,10 @@ class GoEnv(object):
                 num_ply += 1
             except pachi_py.IllegalMove:
                 six.reraise(*sys.exc_info())
-        score = self.config.komi + curr_state.board.official_score
-        reward = -1.0 if score > 0 else 1.0
+        black_win, score = self.game_result(self.config, curr_state)
         game_time = time.time() - start_time
-        # komi is zero when the board is initialized
-        # the official score is: komi + white score - black score + handicap (not used)
         result = {
-            'reward': reward,
+            'black_win': black_win,
             'score': score,
             'plys': num_ply,
             'time': game_time,
@@ -188,23 +210,28 @@ class GoEnv(object):
         return result, curr_state
 
     def play(self, num_games=1):
+        pd.options.display.max_colwidth = 100
+        pd.options.display.precision = 2
         results = []
         for i in tqdm(range(num_games)):
             curr_state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
             self.black_player.reset(curr_state.board)
             self.white_player.reset(curr_state.board)
             result, last_state = self.play_game(curr_state)
-            results.append(result)
-            rewards = np.array([r['reward'] for r in results ])
-            logging.debug(f'game {i}: {result}, win rate = {np.sum(rewards>0)/(i+1)}')
             if self.config.print_board > 0:
                 self.render(last_state)
-            reward = result['reward']
-            self.black_player.end_game(reward)
-            self.white_player.end_game(reward)
+            black_win = result['black_win']
+            statistics = self.black_player.end_game(1.0 if black_win else -1.0)
+            if isinstance(statistics, dict):
+                result.update(statistics)
+            statistics = self.white_player.end_game(-1.0 if black_win else 1.0)
+            if isinstance(statistics, dict):
+                result.update(statistics)
+            results.append(result)
         results_pd = pd.DataFrame(results)
-        rewards = results_pd['reward'].values
-        logging.info(f'total games = {num_games},  win rate = {np.sum(rewards>0)/num_games}')
+        wins = results_pd['black_win'].values
+        logging.info(f'total games = {num_games},  black win rate = {np.mean(wins)}, '
+                     f'\n{results_pd.describe()}')
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)
             out_path.mkdir(exist_ok=True, parents=True)
@@ -213,5 +240,5 @@ class GoEnv(object):
             print(f'writing result to {out_file}')
             results_pd.to_csv(out_file)
             self.config.write_to_file(out_path/f'config_{num_result}.yaml')
-        return
+        return results_pd
 

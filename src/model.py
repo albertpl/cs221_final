@@ -29,10 +29,17 @@ def build_simple_model(config: ModelConfig):
 def build_resnet(config: ModelConfig):
     num_action = config.action_space_size
     input_layer = layers.Input(shape=(config.board_size, config.board_size, config.feature_channel))
-    resnet_out = ResnetBuilder.build_resnet_18(input_layer)
-    x = layers.Dropout(0.2)(layers.Dense(config.fc1_dim, activation='relu')(resnet_out))
-    x = layers.Dense(config.fc2_dim, activation='relu')(x)
+    resnet_out = ResnetBuilder.build_custom_resnet(input_layer, config.board_size)
+    x = layers.Conv2D(filters=2, kernel_size=1, padding='same')(resnet_out)
+    x = layers.BatchNormalization(axis=-1, center=False, scale=False)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Flatten()(x)
     policy_network = layers.Dense(num_action, activation='softmax', name='policy')(x)
+    x = layers.Conv2D(filters=1, kernel_size=1, padding='same', activation='relu')(resnet_out)
+    x = layers.BatchNormalization(axis=-1, center=False, scale=False)(x)
+    x = layers.Activation('relu')(x)
+    x = layers.Flatten()(x)
+    x = layers.Dense(config.fc1_dim, activation='relu')(x)
     value_network = layers.Dense(1, activation='tanh', name='value')(x)
     return models.Model(inputs=input_layer, outputs=[policy_network, value_network])
 

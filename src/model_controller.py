@@ -71,7 +71,7 @@ class KerasModelController(object):
             model_root.mkdir(parents=True, exist_ok=True)
             self.model = create_model(self.config)
             logging.info(f'initiating model and saving to {model_root}')
-        self.model.summary()
+        # self.model.summary()
         assert self.model
 
     def load_datasets(self, force_reload=False):

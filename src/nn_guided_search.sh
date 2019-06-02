@@ -5,13 +5,23 @@ weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 work_root=/tmp/test_nn_guided_mcts
-prev_path=${work_root}/iter_2
-num_iter=10
-num_games=1000
-train_epochs=100
-mcts_num_rollout=100
+prev_path=${work_root}/start
+start_iter=1
+end_iter=100
+num_games=10
+train_epochs=1
+mcts_num_rollout=1000
+num_workers=1
+c_puct=2.5
 
-for i in $(seq ${num_iter})
+#python ${train_program} \
+#    --model_name supervised \
+#    --training_epochs 1 \
+#    train \
+#    --log_dir /tmp/log_dir/ \
+#    /tmp/test_nn_guided_mcts/start/ /tmp/test_nn_guided_mcts/start/ \
+
+for i in $(seq ${start_iter} ${end_iter})
 do
     current_path=${work_root}/${i}/
     mkdir -p ${current_path}
@@ -19,14 +29,17 @@ do
     # copy weight from last iteration
     cp ${prev_path}/${weight_file} ${current_path}/
     # start gather experience via simulations
-    python ${simulate_program} \
-        --mcts_c_puct 1.0 \
-        --mcts_num_rollout ${mcts_num_rollout} \
-        --black_player_record_path ${current_path}/train/worker_1 \
-        --weight_root ${current_path}  \
-        eval  nn_guided_mcts random ${num_games} &
+    for w in $(seq ${num_workers})
+    do
+        python ${simulate_program} \
+            --mcts_c_puct ${c_puct} \
+            --mcts_num_rollout ${mcts_num_rollout} \
+            --black_player_record_path ${current_path}/train/worker_${w} \
+            --white_player_record_path ${current_path}/train/worker_${w} \
+            --weight_root ${current_path}  \
+            eval  nn_guided_mcts nn_guided_mcts ${num_games} &
+    done
     wait
-    #
     python ${train_program} \
         --model_name supervised\
         --training_epochs ${train_epochs} \

@@ -16,7 +16,7 @@ class GoGameRecord(object):
         self.values = []  # [optional] values  list of scalar
         self.action_distributions = []  # [optional] list of np.ndarray (action space size, )
         self.player = pachi_py.EMPTY
-        self.reward = 0  # reward from black player's perspective
+        self.reward = 0  # reward from current player's perspective
 
     def __len__(self):
         return len(self.moves)
@@ -61,7 +61,7 @@ cdef int _NUM_FEATURE_CHANNELS = 3
         game_record.player = player
         game_record.reward = reward
         for encoded, action in pair:
-            assert action < config.action_space_size
+            assert action <= config.action_space_size, action
             game_record.boards.append(cls.encoded_board_to_array(config, encoded))
             game_record.moves.append(action)
         return game_record
@@ -93,9 +93,11 @@ cdef int _NUM_FEATURE_CHANNELS = 3
         assert read_back['player'] == self.player
 
     def render_result(self):
-        for row in self.boards[-1]:
-            print(' '.join([self.player_to_color(p) for p in row]))
         print(f'player={self.player_to_color(self.player)}, reward={self.reward}, total moves={len(self)}')
+        for i in range(len(self.boards)):
+            for row in self.boards[i]:
+                print(' '.join([self.player_to_color(p) for p in row]))
+            print(f'{i}, action={self.moves[i]}')
 
     def action(self, ply_index):
         assert ply_index < len(self)

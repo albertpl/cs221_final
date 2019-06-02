@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2016)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: proposal.aux
+The style file: ieeetr.bst
+Database file #1: reference.bib
+Warning--all relevant fields are empty in FoxGoServer
+You've used 6 entries,
+            1876 wiz_defined-function locations,
+            510 strings with 4826 characters,
+and the built_in function-call counts, 1681 in all, are:
+= -- 120
+> -- 137
+< -- 0
++ -- 48
+- -- 42
+* -- 143
+:= -- 275
+add.period$ -- 6
+call.type$ -- 6
+change.case$ -- 5
+chr.to.int$ -- 0
+cite$ -- 7
+duplicate$ -- 73
+empty$ -- 135
+format.name$ -- 42
+if$ -- 375
+int.to.chr$ -- 0
+int.to.str$ -- 6
+missing$ -- 5
+newline$ -- 21
+num.names$ -- 5
+pop$ -- 21
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 47
+stack$ -- 0
+substring$ -- 62
+swap$ -- 25
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 1
+while$ -- 12
+width$ -- 7
+write$ -- 54
+(There was 1 warning)

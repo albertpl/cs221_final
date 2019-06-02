@@ -1,11 +1,9 @@
 import logging
-import math
 import numpy as np
-import pachi_py
 
 
 from batch import BatchInput
-from environment import GoState, GoEnv, pass_action, resign_action
+from environment import GoState, GoEnv
 import feature
 from game_record import GoGameRecord
 from model_config import ModelConfig
@@ -17,7 +15,7 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
     def __init__(self, config: ModelConfig, player, record_path):
         super().__init__(config=config, player=player, record_path=record_path)
         assert config.weight_root, f'please supply config.weight_root'
-        config.allow_weight_init = False
+        config.allow_weight_init = True
         config.learner_log_dir = ''
         config.batch_size_inference = 1
         config.model_name = 'supervised'
@@ -44,19 +42,26 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
             record.boards = self.boards
             record.action_distributions = self.action_distributions
             record.write_to_path(self.record_path)
+        return self.update_statistics()
 
-    def simulate(self, node):
+    def mc_update(self, node: SearchTreeNode, path: []):
         assert -1.0 <= node.estimated_value <= 1.0, node.estimated_value
-        return node.estimated_value
+        self.rollout_boards = []
+        reward = -node.estimated_value
+        for node, action in path[::-1]:
+            node.visit_counts[action] += 1
+            node.sum_action_values[action] += reward
+            reward *= -1.0
 
-    def expand(self, node: SearchTreeNode, action):
-        successor_state = node.state.clone().act(action)
-        logging.debug(f'expanding to successor=\n{successor_state}')
-        successor_node = SearchTreeNode(self.config, successor_state, parent=node)
-        node.children[action] = successor_node
-        encoded = successor_node.state.board.encode()
-        board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
-        self.rollout_boards.append(board)
+    def update_node(self, node: SearchTreeNode):
+        if node.state.board.is_terminal:
+            black_win = GoEnv.game_result(self.config, node.state)[0]
+            node.estimated_value = 1.0 if black_win else -1.0
+        # otherwise run inference to update priors and values
+        if not node.is_root:
+            encoded = node.state.board.encode()
+            board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
+            self.rollout_boards.append(board)
         # perform inference to populate prior and evaluates
         boards = self.boards + self.rollout_boards
         feature_vector = feature.array_to_feature(self.config,
@@ -65,12 +70,18 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
                                                   ply_index=(len(boards)-1))
         batch_input = BatchInput()
         batch_input.batch_xs = feature_vector[np.newaxis, ...]
-        batch_output = self.model_controller.infer(batch_input)
         # first batch of the first result
-        successor_node.prior_probabilities = batch_output.result[0][0]
-        successor_node.estimated_value = batch_output.result[1][0]
-        self.rollout_boards = []
-        return successor_node
+        batch_output = self.model_controller.infer(batch_input)
+        node.estimated_value = batch_output.result[1][0]
+        if self.config.mcts_set_value_for_q:
+            node.sum_action_values = np.ones_like(node.sum_action_values) * node.estimated_value
+        priors = batch_output.result[0][0] * node.prior_probabilities
+        if self.config.mcts_dirichlet_alpha > 0 and node.is_root:
+            priors[node.legal_actions] = \
+                0.75 * priors[node.legal_actions] + \
+                0.25 * np.random.dirichlet([self.config.mcts_dirichlet_alpha] * len(node.legal_actions))
+        priors /= np.sum(priors+1e-8)
+        node.prior_probabilities = priors
 
     def select(self, node: SearchTreeNode):
         action = node.next_action()

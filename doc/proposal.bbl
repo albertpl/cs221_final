@@ -1,0 +1,31 @@
+\begin{thebibliography}{1}
+
+\bibitem{silver2016mastering}
+D.~Silver, A.~Huang, C.~J. Maddison, A.~Guez, L.~Sifre, G.~Van Den~Driessche,
+  J.~Schrittwieser, I.~Antonoglou, V.~Panneershelvam, M.~Lanctot, {\em et~al.},
+  ``Mastering the game of go with deep neural networks and tree search,'' {\em
+  Nature}, vol.~529, no.~7587, pp.~484--489, 2016.
+
+\bibitem{silver2017masteringalphagozero}
+D.~Silver, J.~Schrittwieser, K.~Simonyan, I.~Antonoglou, A.~Huang, A.~Guez,
+  T.~Hubert, L.~Baker, M.~Lai, A.~Bolton, {\em et~al.}, ``Mastering the game of
+  go without human knowledge,'' {\em Nature}, vol.~550, no.~7676, p.~354, 2017.
+
+\bibitem{silver2017masteringalphazero}
+D.~Silver, T.~Hubert, J.~Schrittwieser, I.~Antonoglou, M.~Lai, A.~Guez,
+  M.~Lanctot, L.~Sifre, D.~Kumaran, T.~Graepel, {\em et~al.}, ``Mastering chess
+  and shogi by self-play with a general reinforcement learning algorithm,''
+  {\em arXiv preprint arXiv:1712.01815}, 2017.
+
+\bibitem{baudivs2011pachi}
+P.~Baudi{\v{s}} and J.-l. Gailly, ``Pachi: State of the art open source go
+  program,'' in {\em Advances in computer games}, pp.~24--38, Springer, 2011.
+
+\bibitem{brockman2016openai}
+G.~Brockman, V.~Cheung, L.~Pettersson, J.~Schneider, J.~Schulman, J.~Tang, and
+  W.~Zaremba, ``Openai gym,'' {\em arXiv preprint arXiv:1606.01540}, 2016.
+
+\bibitem{FoxGoServer}
+
+
+\end{thebibliography}
