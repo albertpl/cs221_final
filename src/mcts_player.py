@@ -53,6 +53,8 @@ class MCTSPlayer(Player):
         self.num_moves = 0
 
     def simulate(self, node: SearchTreeNode):
+        if node.state.board.is_terminal:
+            return GoEnv.game_result(self.config, node.state, return_score=False)
         if self.config.mcts_simulation_policy == 'pachi':
             # for testing only
             from pachi_player import PachiPlayer
@@ -82,7 +84,7 @@ class MCTSPlayer(Player):
         logging.debug(root_node.sum_action_values)
         if self.num_moves <= self.config.mcts_tao_threshold:
             probabilities = root_node.visit_counts/np.sum(root_node.visit_counts)
-            action = np.random.choice(self.config.action_space_size, size=1, p=probabilities)[0]
+            action = GoEnv.sample_action(self.config, root_node.state, probabilities)
         else:
             action = np.argmax(root_node.visit_counts)
         return action
@@ -101,7 +103,7 @@ class MCTSPlayer(Player):
             path = []
             # for each roll out
             # 1. traverse to leaf node, recursively, following tree policy: UCB
-            while True:
+            while not node.state.board.is_terminal:
                 action = self.select(node)
                 path.append((node, action))
                 if node.children[action] is None:

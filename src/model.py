@@ -30,7 +30,7 @@ def build_resnet(config: ModelConfig):
     num_action = config.action_space_size
     input_layer = layers.Input(shape=(config.board_size, config.board_size, config.feature_channel))
     resnet_out = ResnetBuilder.build_resnet_18(input_layer)
-    x = layers.Dropout(0.2)(layers.Dense(config.fc1_dim, activation='relu')(resnet_out))
+    x = layers.Dropout(1-config.dropout_keep_prob)(layers.Dense(config.fc1_dim, activation='relu')(resnet_out))
     x = layers.Dense(config.fc2_dim, activation='relu')(x)
     policy_network = layers.Dense(num_action, activation='softmax', name='policy')(x)
     value_network = layers.Dense(1, activation='tanh', name='value')(x)

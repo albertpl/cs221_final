@@ -30,6 +30,7 @@ class ModelConfig(object):
     fc2_dim = 128
     batch_size = 32
     batch_size_inference = 32
+    min_probability = 1e-8
     # hyper parameters for training
     train_first_n_samples = 0
     training_epochs = 10
@@ -38,7 +39,7 @@ class ModelConfig(object):
     lr_reset_every_epochs = 10
     lr_range = [1.0e-4, 1.0e-3]
     lr_decay = 0.99
-    dropout_keep_prob = 1.0
+    dropout_keep_prob = 0.8
     early_stop = 100000
     use_augmentation = False
     print_n_per_epoch = 1000

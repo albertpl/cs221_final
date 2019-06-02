@@ -1,11 +1,9 @@
 import logging
-import math
 import numpy as np
-import pachi_py
 
 
 from batch import BatchInput
-from environment import GoState, GoEnv, pass_action, resign_action
+from environment import GoState, GoEnv
 import feature
 from game_record import GoGameRecord
 from model_config import ModelConfig
@@ -17,7 +15,7 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
     def __init__(self, config: ModelConfig, player, record_path):
         super().__init__(config=config, player=player, record_path=record_path)
         assert config.weight_root, f'please supply config.weight_root'
-        config.allow_weight_init = False
+        config.allow_weight_init = True
         config.learner_log_dir = ''
         config.batch_size_inference = 1
         config.model_name = 'supervised'
@@ -54,21 +52,24 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
         logging.debug(f'expanding to successor=\n{successor_state}')
         successor_node = SearchTreeNode(self.config, successor_state, parent=node)
         node.children[action] = successor_node
-        encoded = successor_node.state.board.encode()
-        board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
-        self.rollout_boards.append(board)
-        # perform inference to populate prior and evaluates
-        boards = self.boards + self.rollout_boards
-        feature_vector = feature.array_to_feature(self.config,
-                                                  boards=boards,
-                                                  player=node.state.color,
-                                                  ply_index=(len(boards)-1))
-        batch_input = BatchInput()
-        batch_input.batch_xs = feature_vector[np.newaxis, ...]
-        batch_output = self.model_controller.infer(batch_input)
-        # first batch of the first result
-        successor_node.prior_probabilities = batch_output.result[0][0]
-        successor_node.estimated_value = batch_output.result[1][0]
+        if successor_state.board.is_terminal:
+            successor_node.estimated_value = GoEnv.game_result(self.config, successor_state)
+        else:
+            encoded = successor_node.state.board.encode()
+            board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
+            self.rollout_boards.append(board)
+            # perform inference to populate prior and evaluates
+            boards = self.boards + self.rollout_boards
+            feature_vector = feature.array_to_feature(self.config,
+                                                      boards=boards,
+                                                      player=node.state.color,
+                                                      ply_index=(len(boards)-1))
+            batch_input = BatchInput()
+            batch_input.batch_xs = feature_vector[np.newaxis, ...]
+            batch_output = self.model_controller.infer(batch_input)
+            # first batch of the first result
+            successor_node.prior_probabilities = batch_output.result[0][0]
+            successor_node.estimated_value = batch_output.result[1][0]
         self.rollout_boards = []
         return successor_node
 

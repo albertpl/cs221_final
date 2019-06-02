@@ -12,7 +12,7 @@ function show_records()
     done
 }
 
-for player1 in random mcts nn
+for player1 in random mcts nn nn_guided_mcts
 do
     for player2 in random nn pachi
     do

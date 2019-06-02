@@ -43,7 +43,6 @@ class PolicyPlayer(Player):
             record.write_to_path(self.record_path)
 
     def next_action(self, state: GoState, prev_state: GoState, prev_action):
-        board_size = self.config.board_size
         ply_index = len(self.boards)
         encoded = state.board.encode()
         board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
@@ -57,21 +56,7 @@ class PolicyPlayer(Player):
         batch_output = self.model_controller.infer(batch_input)
         # first batch of the first result
         probabilities = batch_output.result[0][0]
-        # return the most preferred legal action
-        legal_actions = set(state.all_legal_actions())
-        sampled_size = min(self.config.action_space_size, np.sum(probabilities > 0.0))
-        action = pass_action(board_size)
-        if sampled_size > 0:
-            sampled_actions = np.random.choice(self.config.action_space_size,
-                                               size=sampled_size,
-                                               replace=False,
-                                               p=probabilities)
-            for sampled_action in sampled_actions:
-                if sampled_action in legal_actions:
-                    action = sampled_action
-                    break
-        else:
-            print('no possible moves')
+        action = GoEnv.sample_action(self.config, state, probabilities)
         self.actions.append(action)
         self.estimated_value.append(batch_output.result[1][0])
         return action

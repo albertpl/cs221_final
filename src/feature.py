@@ -1,4 +1,5 @@
 import numpy as np
+import pachi_py
 
 from batch import BatchInput, BatchOutput
 import environment
@@ -16,16 +17,17 @@ def array_to_feature(config, boards, player, ply_index):
     array of shape
     (board_size, board_size, 2 * depth + 1)
     """
+    assert player in (pachi_py.BLACK, pachi_py.WHITE)
     assert ply_index < len(boards)
     assert config.feature_channel == 2 * config.tree_depth + 1, config
     board_size, depth = config.board_size, config.tree_depth
     features = np.zeros((board_size, board_size, config.feature_channel), dtype=float)
     first_index = max(ply_index - depth, 0)
     opponent = environment.opponent(player)
+    features[:, :, -1] = player
     for i, index in enumerate(range(ply_index, first_index-1, -1)):
-        features[:, :, i] = boards[index] == player
-        features[:, :, depth + i] = boards[index] == opponent
-        features[:, :, -1] = player
+        features[:, :, i] = (boards[index] == player)
+        features[:, :, depth + i] = (boards[index] == opponent)
     return features
 
 
