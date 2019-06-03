@@ -154,13 +154,24 @@
 
 \begin{itemize}
   \item
-    simple rule but mastering requires many years of study by human
+    simple rules but mastering requires many years of study by human
   \item
+    considered hardest classic board game and grand challenge for AI
+  \item
+    AlphaGo and AlphaGoZero have rocked the Go and AI world
+
+\item
+  Challenges
+  \begin{itemize}
+    \item
     state based search is intractable due enormous search space $(\sim 10^{170})$, large number of legal move per state$(\sim 250)$
+    \item
+    massive computational requirements for MCTS and training DNN
   \item
-    the difficulty to handcraft a heuristic evaluation function 
-  \item
-  AlphaGo and AlphaGoZero have rocked the Go and AI world 
+    lack of domain expertise
+    
+  \end{itemize}
+  \vspace{1.0em}
 \end{itemize}
 
 }
@@ -169,15 +180,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     \headerbox{Problem Definition}{name=problem,column=0,below=motivation, above=bottom}{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Turn-taking, two player, fully observable zero-sum game.
-\begin{itemize} \compresslist
+\begin{itemize} 
   \item
-The state space is all possible placements of the stones on the board and the player of that turn. 
-\item
-The action space is any legal position of a stone and a pass action. 
-\item
-The goal is to maximize territory, by observing the board only. 
+  Pachi built-in \textit{UCT} engine as our oracle which is said to achieve highest amateur expect level (KGS 7 dan) on $9 \times 9$ board.  
+  \item
+  To learn playing Go  without incorporating lots of heuristics and predefined patterns beyond basic Go rules
+  \item
+    To understand pro and con of various approaches.
 \end{itemize}
 
 
@@ -189,58 +198,139 @@ The goal is to maximize territory, by observing the board only.
 \headerbox{System architecture}{name=design,column=1,span=2,row=0}{
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \centering\includegraphics[width=0.98\linewidth]{architecture}
+    \begin{itemize} \compresslist
+      \item $\pi_{\theta} (A_t|S_t)$
+            A probability vector for taking each action $A_t$ for $S_t$.
+          \item $v_w(S_t) \in [-1, +1]$
+    \end{itemize}
 
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \headerbox{\small{Monte Carlo Tree Search}}{name=mcts,column=1,span=1, below=design, above=bottom}{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\centering\includegraphics[width=0.98\linewidth]{mcts}
+\centering\includegraphics[width=1.0\linewidth]{mcts}
 
-\begin{algorithm}[H]
-  \DontPrintSemicolon
-  \KwIn{root node $s_0$: current game state}
-  \KwIn{$c>0$: parameter to control the degree of exploration}
-  \While {within computation bound} {
-    $ s \gets s_0 $ \\
-    $ \Delta \gets \emptyset$ \\
-    // selection based on tree policy: Upper Bound Confidence \\
-    \While {$s$ is in the tree} {
-      $a  \gets \argmax \{ q(s, a) + c \sqrt{\frac{\log \sum_{a'}n(s, a')}{n(s,a)}}$ \}\\
-      $\Delta \gets \Delta \cup \{(s, a)\}  $ \\
-      $s \gets \text{Succ}(s, a) $\\
-    }
-    expand tree with the new node $s$ \\
-    continue the game from $s$ with random policy and let $r$ be the reward \\
-    // update each node on the path $s_0 \rightarrow ... \rightarrow s$ \\
-    \For {$s, a \in \Delta $ } {
-      $ n(s, a) \gets n(s,a) + 1 $ \\
-      $ q(s, a) \gets q(s,a) +  \frac{1}{n(s,a)} (r - q(s,a))$ \\
-    }
-  }
-  \Return{$\argmax_{a} q(s_0, a) $}
-\end{algorithm}
+
+\begin{itemize} \compresslist
+  \item Tree policy: UCB1
+    $$a  \gets \argmax_{a} q(s, a) + c \sqrt{\frac{\log \sum_{a'}n(s, a')}{n(s,a)}} $$
+    Select best within tree.
+
+  \item Rollout policy: random
+
+    Sampling breaks curse of dimensionality
+
+  \end{itemize}
+
+\centering\includegraphics[width=1.0\linewidth]{gpi}
 
 }
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  \headerbox{Reinforcement Learning}{name=rl,column=2, span=1, below=design, above=bottom}{
+  \headerbox{\small Deep Reinforcement Learning}{name=rl,column=2, span=1, below=design, above=bottom}{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    \begin{itemize} \compresslist
+      \item REINFORCE with Baseline
+
+        $\pi_{\theta}(s,a)$ to approximate police. $v_w(s)$ as baseline to reduce variance.
+\begin{align*}
+\theta_{t+1} 
+& \gets 
+\theta_{t} + \alpha 
+( r_t  - v_w(s_t))
+\nabla_{\theta} \log \pi_{\theta}(a_t|s_t) 
+\\
+w_{t+1} 
+&\gets 
+w_{t} + \alpha 
+( r  - v_w(s_t))
+\nabla_{w} v_w(s_t) 
+\end{align*}
+
+      \item Actor-critic with Baseline
+
+        TD error as approximation of advantage.
+$$
+\scriptstyle
+\theta_{t+1} 
+\gets 
+\theta_{t} + \alpha 
+( r + v_w(s_{t+1}) - v_w(s_t))
+\nabla_{\theta} \log \pi_{\theta}(a_t|s_t) 
+$$
+
+      \item combining DNN and MCTS 
+
+
+        \begin{itemize} \compresslist
+          \item $\pi_{\theta}(s,a)$ as priors for expansion 
+          \item $v_w(s)$ as estimated value, no rollout 
+          \item supervised training, i.e. as close as possible to statistics from tree search. 
+        \end{itemize}
+    \end{itemize}
+
+$$a  \gets \argmax_{a} q(s, a) + c \pi_{\theta}(s, a) \frac{\sqrt{\sum_{a'}n(s, a')}}{n(s,a)+1} $$
+
+$$ 
+\text{l}(\theta, w) = 
+\sum_{i} (v_w(s_t) - r_t)^2 - 
+\frac{\sum_{a} n(s_t, a) \log \pi_{\theta}(s_t, a)}
+{\sum_{a'} n(s_t, a')}
+$$
+
 }
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \headerbox{Preliminary Results}{name=results,column=3,row=0}{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  All results are averaged over 1000 games of $9 \times 9$ board.
 
+
+  \begin{itemize} \compresslist
+    \item MCTS
+
+  \begin{tabular}{c | c | c | c }
+     & random & random & oracle  \\
+    \hline
+    rollouts  & 100 & 1000 & 1000 \\
+    win rate  & 0.92 & 0.99 & 0.16 \\
+    time & 2.4 & 29.3 & 35.1 \\ 
+  \end{tabular}
+
+  \item REINFORCE with baseline v.s. oracle
+
+  \begin{tabular}{c | c  }
+     iteration &   win rate\\
+    \hline
+    1  & 0.025  \\
+    2 & 0.0265  \\
+    3 & 0.0375  \\ 
+    4 & 0.055  \\ 
+  \end{tabular}
+  \end{itemize}
 
   \vspace{0.5em}
 }
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\headerbox{Analysis}{name=analysis,column=3,span=1, below=results}{
+\headerbox{Analysis}{name=analysis,column=3,span=1, below=results, above=bottom}{
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{itemize} \compresslist
+  \item MCTS
+    pachi uses \textbf{heavy} rollout policy, which entails rule based pattern, such as,  if the last move has put its own group in \textit{atari} we capture it; \textit{Nakade}a move is played inside the eyeshape to prevent the opponent from splitting it into two eyes.  Also Pachi applies heuristics based priors when expanding new node. 
+
+  \item
+    Our MCTS uses random rollout policy and not as strong as it could be.
+
+  \item
+    Self-played based DRL approaches require 
+
+
+\end{itemize}
 }
 
 
