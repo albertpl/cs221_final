@@ -121,7 +121,7 @@
   % Title
   {\bf\textsc{Learn to play Go}\vspace{0.5em}}
   % Authors
-  {\textsc{Albert Liu (albertpl@stanford.edu})}
+  {{Albert Liu (albertpl@stanford.edu})}
   % University logo
   {% The makebox allows the title to flow into the logo, this is a hack because of the L shaped logo.
     \includegraphics[height=5.0em]{SU_Seal_Red}
@@ -154,9 +154,9 @@
 
 \begin{itemize}
   \item
-    simple rules but mastering requires many years of study by human
+    Simple rules but it takes many years of study to master
   \item
-    considered hardest classic board game and grand challenge for AI
+    Considered hardest classic board game and grand challenge for AI
   \item
     AlphaGo and AlphaGoZero have rocked the Go and AI world
 
@@ -164,11 +164,11 @@
   Challenges
   \begin{itemize}
     \item
-    state based search is intractable due enormous search space $(\sim 10^{170})$, large number of legal move per state$(\sim 250)$
+    Search is intractable due to enormous search space $(\sim 10^{170})$ and large number of legal move per state$(\sim 250)$
     \item
-    massive computational requirements for MCTS and training DNN
+    Massive computational requirements for MCTS and training DNN
   \item
-    lack of domain expertise
+    Lack of domain expertise
     
   \end{itemize}
   \vspace{1.0em}
@@ -182,11 +182,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{itemize} 
   \item
+    Formulate Go as a turn-taking, two player, zero-sum game of perfect information. The input for each agent is current board positions and histories. The output (action space) is any legal position and a pass action. 
+  \item
+  The goal is to have agent learn to play Go without incorporating lots of heuristics and predefined patterns beyond basic Go rules
+  \item
   Pachi built-in \textit{UCT} engine as our oracle which is said to achieve highest amateur expect level (KGS 7 dan) on $9 \times 9$ board.  
-  \item
-  To learn playing Go  without incorporating lots of heuristics and predefined patterns beyond basic Go rules
-  \item
-    To understand pro and con of various approaches.
 \end{itemize}
 
 
@@ -199,9 +199,9 @@
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \centering\includegraphics[width=0.98\linewidth]{architecture}
     \begin{itemize} \compresslist
-      \item $\pi_{\theta} (A_t|S_t)$
-            A probability vector for taking each action $A_t$ for $S_t$.
-          \item $v_w(S_t) \in [-1, +1]$
+      \item $ S_t \in \mathbb R^{ 9 \times 9 \times 17}$
+      \item $\pi_{\theta} (s, a) \sim \mathbb P(A_t=a|S_t=s)$
+      \item $v_w(s) \sim V_{\pi}(S_t=s)$
     \end{itemize}
 
 }
@@ -213,13 +213,12 @@
 
 
 \begin{itemize} \compresslist
-  \item Tree policy: UCB1
+  \item Tree policy(UCB1): select next within tree
     $$a  \gets \argmax_{a} q(s, a) + c \sqrt{\frac{\log \sum_{a'}n(s, a')}{n(s,a)}} $$
-    Select best within tree.
 
-  \item Rollout policy: random
+  \item Rollout policy: random sampling 
 
-    Sampling breaks curse of dimensionality
+  \item After simulations, select based on visit counts
 
   \end{itemize}
 
@@ -234,7 +233,7 @@
     \begin{itemize} \compresslist
       \item REINFORCE with Baseline
 
-        $\pi_{\theta}(s,a)$ to approximate police. $v_w(s)$ as baseline to reduce variance.
+        $\pi_{\theta}(s,a)$ as approximation of police. $v_w(s)$ as baseline to reduce variance.
 \begin{align*}
 \theta_{t+1} 
 & \gets 
@@ -261,11 +260,11 @@ $$
 \nabla_{\theta} \log \pi_{\theta}(a_t|s_t) 
 $$
 
-      \item combining DNN and MCTS 
+      \item Combine DNN and MCTS 
 
 
         \begin{itemize} \compresslist
-          \item $\pi_{\theta}(s,a)$ as priors for expansion 
+          \item $\pi_{\theta}(s,a)$ as priors for selection
           \item $v_w(s)$ as estimated value, no rollout 
           \item supervised training, i.e. as close as possible to statistics from tree search. 
         \end{itemize}
@@ -286,33 +285,33 @@ $$
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \headerbox{Preliminary Results}{name=results,column=3,row=0}{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  All results are averaged over 1000 games of $9 \times 9$ board.
 
 
   \begin{itemize} \compresslist
-    \item MCTS
+    \item MCTS, \footnotesize{1000 games, komi=0.0}
 
   \begin{tabular}{c | c | c | c }
-     & random & random & oracle  \\
+     & baseline & baseline & oracle  \\
     \hline
-    rollouts  & 100 & 1000 & 1000 \\
+    \small{\# simulations}  & 100 & 1000 & 1000 \\
     win rate  & 0.92 & 0.99 & 0.16 \\
-    time & 2.4 & 29.3 & 35.1 \\ 
+    \small{time per game} & 2.4s & 29.3s & 35.1s \\ 
   \end{tabular}
 
-  \item REINFORCE with baseline v.s. oracle
 
-  \begin{tabular}{c | c  }
-     iteration &   win rate\\
-    \hline
-    1  & 0.025  \\
-    2 & 0.0265  \\
-    3 & 0.0375  \\ 
-    4 & 0.055  \\ 
-  \end{tabular}
+\item \normalsize{REINFORCE with Baseline vs oracle} \\
+      \scriptsize{2000 games, 10 epochs/iteration, komi=0.5}
+    {\centering{\includegraphics[width=1.0\linewidth]{pgwinrate}}}
+
+  \item \normalsize{Combined v.s. baseline}\\
+      \scriptsize{100 games, 10 epochs/iteration, 500 simulations, komi=0.5}
+    {\centering{\includegraphics[width=1.0\linewidth]{nngmctswinrate}}}
+
+  \item
+    \normalsize{All results are on $9 \times 9$ board}
   \end{itemize}
 
-  \vspace{0.5em}
+  %\vspace{0.5em}
 }
 
 
@@ -321,13 +320,19 @@ $$
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{itemize} \compresslist
   \item MCTS
-    pachi uses \textbf{heavy} rollout policy, which entails rule based pattern, such as,  if the last move has put its own group in \textit{atari} we capture it; \textit{Nakade}a move is played inside the eyeshape to prevent the opponent from splitting it into two eyes.  Also Pachi applies heuristics based priors when expanding new node. 
+    pachi uses \textbf{heavy} rollout policy, which entails rule based pattern, such as \textit{atari} and  \textit{Nakade}. Also Pachi applies heuristics based priors when expanding new node. 
 
   \item
-    Our MCTS uses random rollout policy and not as strong as it could be.
+    Our MCTS uses \textbf{light} rollout policy and not as strong as it could be.
 
   \item
-    Self-played based DRL approaches require 
+    For MCTS, the number of simulations per search is important for accurate policy evaluation. We manage to run $\sim 0.5$ms per simulation. 
+
+  \item
+    Policy gradient method may converge to local optimal where $\pi_{\theta}$ almost becomes deterministic and therefore we don't explore other actions. This is particularly bad for the starting moves.
+
+  \item
+    It is computationally expensive to gather experiences through self play. It takes $>3$ hours to run 100 games with moderate 500 simulations per move. 
 
 
 \end{itemize}
