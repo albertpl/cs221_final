@@ -43,6 +43,7 @@ class PolicyPlayer(Player):
             record.write_to_path(self.record_path)
 
     def next_action(self, state: GoState, prev_state: GoState, prev_action):
+        board_size = self.config.board_size
         ply_index = len(self.boards)
         encoded = state.board.encode()
         board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
@@ -56,6 +57,9 @@ class PolicyPlayer(Player):
         batch_output = self.model_controller.infer(batch_input)
         # first batch of the first result
         probabilities = batch_output.result[0][0]
+        # restrict these two actions
+        probabilities[resign_action(board_size)] = 0.0
+        probabilities[pass_action(board_size)] = 0.0
         action = GoEnv.sample_action(self.config, state, probabilities)
         self.actions.append(action)
         self.estimated_value.append(batch_output.result[1][0])
