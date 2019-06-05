@@ -93,9 +93,11 @@ cdef int _NUM_FEATURE_CHANNELS = 3
         assert read_back['player'] == self.player
 
     def render_result(self):
-        for row in self.boards[-1]:
-            print(' '.join([self.player_to_color(p) for p in row]))
         print(f'player={self.player_to_color(self.player)}, reward={self.reward}, total moves={len(self)}')
+        for i in range(len(self.boards)):
+            for row in self.boards[i]:
+                print(' '.join([self.player_to_color(p) for p in row]))
+            print(f'{i}, action={self.moves[i]}')
 
     def action(self, ply_index):
         assert ply_index < len(self)
