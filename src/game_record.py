@@ -16,7 +16,7 @@ class GoGameRecord(object):
         self.values = []  # [optional] values  list of scalar
         self.action_distributions = []  # [optional] list of np.ndarray (action space size, )
         self.player = pachi_py.EMPTY
-        self.reward = 0  # reward from black player's perspective
+        self.reward = 0  # reward from current player's perspective
 
     def __len__(self):
         return len(self.moves)

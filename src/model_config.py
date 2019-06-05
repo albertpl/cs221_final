@@ -7,7 +7,7 @@ class ModelConfig(object):
     # GO game configurations
     komi = 0.5
     board_size = 9
-    action_space_size = board_size * board_size + 2
+    action_space_size = board_size * board_size + 1
     game_index_file = 'game_index.yaml'
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
@@ -23,8 +23,9 @@ class ModelConfig(object):
     # parameters for MCTS
     mcts_c_puct = 0.2
     mcts_num_rollout = 1000
-    mcts_tao_threshold = 20  # following AGZ, before this threshold, tao=1, after, infinitesimal
+    mcts_tao_threshold = 7  # following AGZ, before this threshold, tao=1, after, infinitesimal
     mcts_simulation_policy = ''  # default is random, 'pachi' for testing
+    mcts_dirichlet_alpha = 0.0
     # parameters for NN model
     fc1_dim = 256
     fc2_dim = 128

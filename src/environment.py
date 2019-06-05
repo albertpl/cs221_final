@@ -156,16 +156,13 @@ class GoEnv(object):
         return outfile
 
     @classmethod
-    def game_result(cls, config, curr_state, return_score=False):
+    def game_result(cls, config, curr_state):
         # assert curr_state.board.is_terminal, f'game not over yet. {curr_state}'
         # komi is zero when the board is initialized
         # the official score is: komi + white score - black score + handicap (not used)
         score = config.komi + curr_state.board.official_score
-        reward = -1.0 if score > 0 else 1.0
-        if return_score:
-            return reward, score
-        else:
-            return reward
+        black_win = (score <= 0.0)
+        return black_win, score
 
     @classmethod
     def sample_action(cls, config, curr_state, probabilities):
@@ -202,10 +199,10 @@ class GoEnv(object):
                 num_ply += 1
             except pachi_py.IllegalMove:
                 six.reraise(*sys.exc_info())
-        reward, score = self.game_result(self.config, curr_state, return_score=True)
+        black_win, score = self.game_result(self.config, curr_state)
         game_time = time.time() - start_time
         result = {
-            'reward': reward,
+            'black_win': black_win,
             'score': score,
             'plys': num_ply,
             'time': game_time,
@@ -220,16 +217,14 @@ class GoEnv(object):
             self.white_player.reset(curr_state.board)
             result, last_state = self.play_game(curr_state)
             results.append(result)
-            rewards = np.array([r['reward'] for r in results ])
-            logging.debug(f'game {i}: {result}, win rate = {np.sum(rewards>0)/(i+1)}')
             if self.config.print_board > 0:
                 self.render(last_state)
-            reward = result['reward']
-            self.black_player.end_game(reward)
-            self.white_player.end_game(reward)
+            black_win = result['black_win']
+            self.black_player.end_game(1.0 if black_win else -1.0)
+            self.white_player.end_game(-1.0 if black_win else 1.0)
         results_pd = pd.DataFrame(results)
-        rewards = results_pd['reward'].values
-        logging.info(f'total games = {num_games},  win rate = {np.sum(rewards>0)/num_games}, '
+        wins = results_pd['black_win'].values
+        logging.info(f'total games = {num_games},  black win rate = {np.mean(wins)}, '
                      f'\n{results_pd.describe()}')
         if self.config.game_result_path:
             out_path = Path(self.config.game_result_path)

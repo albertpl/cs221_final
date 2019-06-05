@@ -45,33 +45,36 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
 
     def simulate(self, node):
         assert -1.0 <= node.estimated_value <= 1.0, node.estimated_value
+        self.rollout_boards = []
         return node.estimated_value
 
-    def expand(self, node: SearchTreeNode, action):
-        successor_state = node.state.clone().act(action)
-        logging.debug(f'expanding to successor=\n{successor_state}')
-        successor_node = SearchTreeNode(self.config, successor_state, parent=node)
-        node.children[action] = successor_node
-        if successor_state.board.is_terminal:
-            successor_node.estimated_value = GoEnv.game_result(self.config, successor_state)
-        else:
-            encoded = successor_node.state.board.encode()
+    def update_node(self, node: SearchTreeNode):
+        if node.state.board.is_terminal:
+            black_win = GoEnv.game_result(self.config, node.state)[0]
+            node.estimated_value = 1.0 if black_win else -1.0
+        # otherwise run inference to update priors and values
+        if not node.is_root:
+            encoded = node.state.board.encode()
             board = GoGameRecord.encoded_board_to_array(self.config, encoded=encoded)
             self.rollout_boards.append(board)
-            # perform inference to populate prior and evaluates
-            boards = self.boards + self.rollout_boards
-            feature_vector = feature.array_to_feature(self.config,
-                                                      boards=boards,
-                                                      player=node.state.color,
-                                                      ply_index=(len(boards)-1))
-            batch_input = BatchInput()
-            batch_input.batch_xs = feature_vector[np.newaxis, ...]
-            batch_output = self.model_controller.infer(batch_input)
-            # first batch of the first result
-            successor_node.prior_probabilities = batch_output.result[0][0]
-            successor_node.estimated_value = batch_output.result[1][0]
-        self.rollout_boards = []
-        return successor_node
+        # perform inference to populate prior and evaluates
+        boards = self.boards + self.rollout_boards
+        feature_vector = feature.array_to_feature(self.config,
+                                                  boards=boards,
+                                                  player=node.state.color,
+                                                  ply_index=(len(boards)-1))
+        batch_input = BatchInput()
+        batch_input.batch_xs = feature_vector[np.newaxis, ...]
+        # first batch of the first result
+        batch_output = self.model_controller.infer(batch_input)
+        node.estimated_value = batch_output.result[1][0]
+        priors = batch_output.result[0][0] * node.prior_probabilities
+        if self.config.mcts_dirichlet_alpha > 0 and node.is_root:
+            priors[node.legal_actions] = \
+                0.75 * priors[node.legal_actions] + \
+                0.25 * np.random.dirichlet([self.config.mcts_dirichlet_alpha] * len(node.legal_actions))
+        priors /= np.sum(priors+1e-8)
+        node.prior_probabilities = priors
 
     def select(self, node: SearchTreeNode):
         action = node.next_action()
