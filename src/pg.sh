@@ -9,7 +9,7 @@ weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 num_games=1000
-train_epochs=20
+train_epochs=2
 
 for i in $(seq ${start_iter} ${end_iter})
 do
@@ -22,12 +22,12 @@ do
     python ${simulate_program} \
         --black_player_record_path ${current_path}/train/worker_1 \
         --weight_root ${current_path}  \
-        eval  nn pachi ${num_games} &
-    python ${simulate_program} \
-        --black_player_record_path ${current_path}/train/worker_2 \
-        --weight_root ${current_path}  \
-        eval  nn pachi ${num_games} &
-    wait
+        eval  nn pachi ${num_games}
+    #python ${simulate_program} \
+    #    --black_player_record_path ${current_path}/train/worker_2 \
+    #    --weight_root ${current_path}  \
+    #    eval  nn pachi ${num_games} &
+    #wait
     # training with experiences
     python ${train_program} \
         --model_name policy_gradient\
