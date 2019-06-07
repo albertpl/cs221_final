@@ -7,7 +7,7 @@ class ModelConfig(object):
     # GO game configurations
     komi = 0.5
     board_size = 9
-    action_space_size = board_size * board_size + 1
+    action_space_size = board_size * board_size + 2  # pass and resign
     game_index_file = 'game_index.yaml'
     tree_depth = 8
     feature_channel = 17  # 2 * tree_depth + 1
@@ -18,17 +18,20 @@ class ModelConfig(object):
     white_player_record_path = ''
     game_result_path = ''
     game_record_policy = ''
+    black_player_policy = ''
+    white_player_policy = ''
     # patchi
     pachi_timestr = '_2400'
     # parameters for MCTS
-    mcts_c_puct = 0.2
+    mcts_c_puct = 2.5
     mcts_num_rollout = 1000
     mcts_tao_threshold = 7  # following AGZ, before this threshold, tao=1, after, infinitesimal
-    mcts_simulation_policy = ''  # default is random, 'pachi' for testing
-    mcts_dirichlet_alpha = 0.0
+    mcts_simulation_policy = ''  # default is random
+    mcts_dirichlet_alpha = 0  # 0.0134 = 0.03 * 19^2 / 9 ^2
+    mcts_set_value_for_q = 1
     # parameters for NN model
-    fc1_dim = 256
-    fc2_dim = 128
+    fc1_dim = 128
+    fc2_dim = 64
     batch_size = 32
     batch_size_inference = 32
     min_probability = 1e-8
@@ -40,7 +43,7 @@ class ModelConfig(object):
     lr_reset_every_epochs = 10
     lr_range = [1.0e-4, 1.0e-3]
     lr_decay = 0.99
-    dropout_keep_prob = 0.8
+    dropout_keep_prob = 1.0
     early_stop = 100000
     use_augmentation = False
     print_n_per_epoch = 1000
@@ -49,6 +52,9 @@ class ModelConfig(object):
     learner_log_dir = ''
     weight_root = ''
     dataset_path = ''
+    # HPO
+    hpo_work_root = ''
+    hpo_max_trial = 1
 
     def __init__(self, **kwargs):
         if kwargs is not None:

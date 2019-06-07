@@ -31,5 +31,3 @@ class Player(object):
             self.pair.append((encoded_board, action))
         return action
 
-
-

@@ -42,11 +42,16 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
             record.boards = self.boards
             record.action_distributions = self.action_distributions
             record.write_to_path(self.record_path)
+        return self.update_statistics()
 
-    def simulate(self, node):
+    def mc_update(self, node: SearchTreeNode, path: []):
         assert -1.0 <= node.estimated_value <= 1.0, node.estimated_value
         self.rollout_boards = []
-        return node.estimated_value
+        reward = -node.estimated_value
+        for node, action in path[::-1]:
+            node.visit_counts[action] += 1
+            node.sum_action_values[action] += reward
+            reward *= -1.0
 
     def update_node(self, node: SearchTreeNode):
         if node.state.board.is_terminal:
@@ -68,6 +73,8 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
         # first batch of the first result
         batch_output = self.model_controller.infer(batch_input)
         node.estimated_value = batch_output.result[1][0]
+        if self.config.mcts_set_value_for_q:
+            node.sum_action_values = np.ones_like(node.sum_action_values) * node.estimated_value
         priors = batch_output.result[0][0] * node.prior_probabilities
         if self.config.mcts_dirichlet_alpha > 0 and node.is_root:
             priors[node.legal_actions] = \

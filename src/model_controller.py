@@ -115,7 +115,7 @@ class KerasModelController(object):
                     train_generator,
                     steps_per_epoch=config.iterations_per_epoch,
                     epochs=config.training_epochs,
-                    verbose=0,
+                    verbose=1,
                     callbacks=callbacks,
                     validation_data=val_generator,
                     validation_steps=len(self.datasets.val)//config.batch_size_inference,
@@ -125,7 +125,7 @@ class KerasModelController(object):
                     train_generator,
                     steps_per_epoch=config.iterations_per_epoch,
                     epochs=config.training_epochs,
-                    verbose=0,
+                    verbose=1,
                     callbacks=callbacks
                 )
 

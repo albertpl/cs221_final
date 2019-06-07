@@ -157,11 +157,11 @@ class GoEnv(object):
 
     @classmethod
     def game_result(cls, config, curr_state):
-        # assert curr_state.board.is_terminal, f'game not over yet. {curr_state}'
+        assert curr_state.board.is_terminal, f'game not over yet. {curr_state}'
         # komi is zero when the board is initialized
         # the official score is: komi + white score - black score + handicap (not used)
         score = config.komi + curr_state.board.official_score
-        black_win = (score <= 0.0)
+        black_win = int(score <= 0.0)
         return black_win, score
 
     @classmethod
@@ -210,18 +210,24 @@ class GoEnv(object):
         return result, curr_state
 
     def play(self, num_games=1):
+        pd.options.display.max_colwidth = 100
+        pd.options.display.precision = 2
         results = []
         for i in tqdm(range(num_games)):
             curr_state = GoState(pachi_py.CreateBoard(self.board_size), pachi_py.BLACK)
             self.black_player.reset(curr_state.board)
             self.white_player.reset(curr_state.board)
             result, last_state = self.play_game(curr_state)
-            results.append(result)
             if self.config.print_board > 0:
                 self.render(last_state)
             black_win = result['black_win']
-            self.black_player.end_game(1.0 if black_win else -1.0)
-            self.white_player.end_game(-1.0 if black_win else 1.0)
+            statistics = self.black_player.end_game(1.0 if black_win else -1.0)
+            if isinstance(statistics, dict):
+                result.update(statistics)
+            statistics = self.white_player.end_game(-1.0 if black_win else 1.0)
+            if isinstance(statistics, dict):
+                result.update(statistics)
+            results.append(result)
         results_pd = pd.DataFrame(results)
         wins = results_pd['black_win'].values
         logging.info(f'total games = {num_games},  black win rate = {np.mean(wins)}, '
@@ -234,5 +240,5 @@ class GoEnv(object):
             print(f'writing result to {out_file}')
             results_pd.to_csv(out_file)
             self.config.write_to_file(out_path/f'config_{num_result}.yaml')
-        return
+        return results_pd
 

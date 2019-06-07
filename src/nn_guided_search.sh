@@ -6,13 +6,20 @@ simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 work_root=/tmp/test_nn_guided_mcts
 prev_path=${work_root}/start
-start_iter=8
+start_iter=1
 end_iter=100
-num_games=100
+num_games=10
 train_epochs=1
-mcts_num_rollout=200
+mcts_num_rollout=1000
 num_workers=1
-c_puct=1.0
+c_puct=2.5
+
+#python ${train_program} \
+#    --model_name supervised \
+#    --training_epochs 1 \
+#    train \
+#    --log_dir /tmp/log_dir/ \
+#    /tmp/test_nn_guided_mcts/start/ /tmp/test_nn_guided_mcts/start/ \
 
 for i in $(seq ${start_iter} ${end_iter})
 do

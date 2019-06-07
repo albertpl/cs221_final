@@ -5,9 +5,9 @@ weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 game_result_root=${HOME}/src/tmp/game_result/
 num_games=10
-start_iter=7
+start_iter=1
 end_iter=10
-mcts_num_rollout=100
+mcts_num_rollout=500
 c_puct=0.2
 
 for i in $(seq ${start_iter} ${end_iter})

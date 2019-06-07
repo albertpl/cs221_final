@@ -33,8 +33,8 @@ class SearchTreeNode(object):
 
     def next_action(self):
         """ UCB policy """
-        action_values = self.sum_action_values/(self.visit_counts + 1e-8) - self.illegal_cost
-        ucb = action_values \
+        action_values = np.where(self.visit_counts > 0, self.sum_action_values/(self.visit_counts + 1e-8), 0.0)
+        ucb = action_values - self.illegal_cost\
             + self.c_puct * np.sqrt(np.sum(self.visit_counts)) * self.prior_probabilities/(1 + self.visit_counts)
         action = int(np.argmax(ucb))
         assert action in self.legal_actions
@@ -49,11 +49,35 @@ class SearchTreeNode(object):
         print(f'ucb = \n{ucb}')
         return
 
+    def visit_ratio(self):
+        return np.sum(self.visit_counts > 0)/len(self.legal_actions)
+
 
 class MCTSPlayer(Player):
     def __init__(self, config: ModelConfig, player, record_path):
         super().__init__(config=config, player=player, record_path=record_path)
         self.num_moves = 0
+        self.max_search_depth = 0
+        self.min_search_depth = config.mcts_num_rollout
+        self.min_visit_ratio = 1.0
+        self.max_visit_ratio = 0.0
+
+    def update_statistics(self):
+        statistics = {
+            'min_search_depth': self.min_search_depth,
+            'max_search_depth': self.max_search_depth,
+            'min_visit_ratio': self.min_visit_ratio,
+            'max_visit_ratio': self.max_visit_ratio,
+        }
+        self.max_search_depth = 0
+        self.min_search_depth = self.config.mcts_num_rollout
+        self.min_visit_ratio = 1.0
+        self.max_visit_ratio = 0.0
+        return statistics
+
+    def end_game(self, reward):
+        super().end_game(reward)
+        return self.update_statistics()
 
     def simulate(self, node: SearchTreeNode):
         if node.state.board.is_terminal:
@@ -67,7 +91,11 @@ class MCTSPlayer(Player):
         return result['black_win']
 
     def update_node(self, node):
-        pass
+        if self.config.mcts_dirichlet_alpha > 0 and node.is_root:
+            node.prior_probabilities[node.legal_actions] = \
+                0.75 * node.prior_probabilities[node.legal_actions] + \
+                0.25 * np.random.dirichlet([self.config.mcts_dirichlet_alpha] * len(node.legal_actions))
+            node.prior_probabilities /= np.sum(node.prior_probabilities+1e-8)
 
     def expand(self, node: SearchTreeNode, action):
         successor_state = node.state.clone().act(action)
@@ -87,12 +115,26 @@ class MCTSPlayer(Player):
             action = GoEnv.sample_action(self.config, root_node.state, probabilities)
         else:
             action = np.argmax(root_node.visit_counts)
+        self.min_visit_ratio = min(self.min_visit_ratio, root_node.visit_ratio())
+        self.max_visit_ratio = max(self.max_visit_ratio, root_node.visit_ratio())
         return action
+
+    def mc_update(self, node: SearchTreeNode, path: []):
+        # 3. carry out simulation
+        black_win = self.simulate(node)
+        # 4. back up
+        black_reward = 1.0 if black_win else -1.0
+        white_reward = 0 - black_reward
+        for node, action in path:
+            node.visit_counts[action] += 1
+            player_reward = black_reward if node.state.color == pachi_py.BLACK else white_reward
+            node.sum_action_values[action] += player_reward
 
     def search(self, state):
         root_state = state.clone()
         root_node = SearchTreeNode(self.config, state=root_state, parent=None)
         root_node.is_root = True
+        self.update_node(root_node)
         for i in range(self.config.mcts_num_rollout):
             node = root_node
             path = []
@@ -110,17 +152,14 @@ class MCTSPlayer(Player):
                         six.reraise(*sys.exc_info())
                     break
                 node = node.children[action]
-            # 3. carry out simulation
-            black_win = self.simulate(node)
-            # 4. back up
-            black_reward = 1.0 if black_win else -1.0
-            white_reward = 0 - black_reward
-            for node, action in path:
-                node.visit_counts[action] += 1
-                player_reward = black_reward if node.state.color == pachi_py.BLACK else white_reward
-                node.sum_action_values[action] += player_reward
+            self.mc_update(node, path)
+            self.max_search_depth = max(self.max_search_depth, len(path))
+            self.min_search_depth = min(self.min_search_depth, len(path))
         # select the action from root node statistics
         action = self.after_rollout(root_node)
+        if self.config.print_board > 1:
+            GoEnv.render(state)
+            print(f'action={action}, num_moves={self.num_moves}')
         # TODO: reuse root?
         return action
 

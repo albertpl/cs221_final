@@ -30,7 +30,7 @@ CHANNEL_AXIS = 3
 def _bn_relu(input):
     """Helper to build a BN -> relu block
     """
-    norm = BatchNormalization(axis=CHANNEL_AXIS)(input)
+    norm = BatchNormalization(axis=-1)(input)
     return Activation("relu")(norm)
 
 
@@ -48,7 +48,8 @@ def _conv_bn_relu(**conv_params):
         conv = Conv2D(filters=filters,
                       kernel_size=kernel_size,
                       strides=strides,
-                      padding=padding
+                      padding=padding,
+                      use_bias=False
                       )(input)
         return _bn_relu(conv)
 
@@ -107,12 +108,10 @@ def _residual_block(block_function, filters, repetitions, is_first_layer=False):
     def f(input):
         for i in range(repetitions):
             init_strides = (1, 1)
-            if i == 0 and not is_first_layer:
-                init_strides = (2, 2)
-            input = block_function(filters=filters, init_strides=init_strides,
+            input = block_function(filters=filters,
+                                   init_strides=init_strides,
                                    is_first_block_of_first_layer=(is_first_layer and i == 0))(input)
         return input
-
     return f
 
 
@@ -133,7 +132,7 @@ def basic_block(filters, init_strides=(1, 1), is_first_block_of_first_layer=Fals
                                   strides=init_strides)(input)
 
         residual = _bn_relu_conv(filters=filters, kernel_size=(3, 3))(conv1)
-        return _shortcut(input, residual)
+        return add([input, residual])
 
     return f
 
@@ -210,23 +209,32 @@ class ResnetBuilder(object):
         # Load function from str if needed.
         block_fn = _get_block(block_fn)
         conv1 = _conv_bn_relu(filters=32, kernel_size=(3, 3), strides=(1, 1))(input_layer)
-        pool1 = MaxPooling2D(pool_size=(2, 2), strides=None, padding="valid")(conv1)
+        # pool1 = MaxPooling2D(pool_size=(2, 2), strides=None, padding="same")(conv1)
 
-        block = pool1
-        filters = 64
+        block = conv1
+        filters = 32
         for i, r in enumerate(repetitions):
             block = _residual_block(block_fn, filters=filters, repetitions=r, is_first_layer=(i == 0))(block)
-            filters *= 2
+            # filters *= 2
 
         # Last activation
         block = _bn_relu(block)
+        return block
 
-        # Classifier block
-        block_shape = K.int_shape(block)
-        pool2 = AveragePooling2D(pool_size=(block_shape[ROW_AXIS], block_shape[COL_AXIS]),
-                                 strides=(1, 1))(block)
-        flatten1 = Flatten()(pool2)
-        return flatten1
+    @staticmethod
+    def build_custom_resnet(input_layer, num_block):
+        def res_layer(x):
+            init_output = _conv_bn_relu(filters=32, kernel_size=3, strides=(1, 1))(x)
+            conv = Conv2D(filters=32,
+                          kernel_size=3,
+                          padding='same',
+                          use_bias=False
+                          )(init_output)
+            return Activation('relu')(add([x, BatchNormalization(axis=-1)(conv)]))
+        shared_output = _conv_bn_relu(filters=32, kernel_size=3, strides=(1, 1))(input_layer)
+        for _ in range(num_block):
+            shared_output = res_layer(shared_output)
+        return shared_output
 
     @staticmethod
     def build_resnet_18(input_layer):

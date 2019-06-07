@@ -61,7 +61,7 @@ cdef int _NUM_FEATURE_CHANNELS = 3
         game_record.player = player
         game_record.reward = reward
         for encoded, action in pair:
-            assert action < config.action_space_size
+            assert action <= config.action_space_size, action
             game_record.boards.append(cls.encoded_board_to_array(config, encoded))
             game_record.moves.append(action)
         return game_record
