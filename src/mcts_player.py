@@ -58,19 +58,16 @@ class MCTSPlayer(Player):
         super().__init__(config=config, player=player, record_path=record_path)
         self.num_moves = 0
         self.max_search_depth = 0
-        self.min_search_depth = config.mcts_num_rollout
         self.min_visit_ratio = 1.0
         self.max_visit_ratio = 0.0
 
     def update_statistics(self):
         statistics = {
-            'min_search_depth': self.min_search_depth,
             'max_search_depth': self.max_search_depth,
             'min_visit_ratio': self.min_visit_ratio,
             'max_visit_ratio': self.max_visit_ratio,
         }
         self.max_search_depth = 0
-        self.min_search_depth = self.config.mcts_num_rollout
         self.min_visit_ratio = 1.0
         self.max_visit_ratio = 0.0
         return statistics
@@ -115,8 +112,6 @@ class MCTSPlayer(Player):
             action = GoEnv.sample_action(self.config, root_node.state, probabilities)
         else:
             action = np.argmax(root_node.visit_counts)
-        self.min_visit_ratio = min(self.min_visit_ratio, root_node.visit_ratio())
-        self.max_visit_ratio = max(self.max_visit_ratio, root_node.visit_ratio())
         return action
 
     def mc_update(self, node: SearchTreeNode, path: []):
@@ -154,9 +149,10 @@ class MCTSPlayer(Player):
                 node = node.children[action]
             self.mc_update(node, path)
             self.max_search_depth = max(self.max_search_depth, len(path))
-            self.min_search_depth = min(self.min_search_depth, len(path))
         # select the action from root node statistics
         action = self.after_rollout(root_node)
+        self.min_visit_ratio = min(self.min_visit_ratio, root_node.visit_ratio())
+        self.max_visit_ratio = max(self.max_visit_ratio, root_node.visit_ratio())
         if self.config.print_board > 1:
             GoEnv.render(state)
             print(f'action={action}, num_moves={self.num_moves}')

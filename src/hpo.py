@@ -42,11 +42,11 @@ def create_work_dir(config: ModelConfig):
 def evaluate(config: ModelConfig, space: Dict, num_games: int):
     duplicated = duplicate_and_update(config, space)
     trial_id, work_dir = create_work_dir(duplicated)
-    config.game_result_path = work_dir
+    duplicated.game_result_path = work_dir
     try:
-        env = GoEnv(config,
-                    create_agent(config, config.black_player_policy, pachi_py.BLACK),
-                    create_agent(config, config.white_player_policy, pachi_py.WHITE))
+        env = GoEnv(duplicated,
+                    create_agent(duplicated, duplicated.black_player_policy, pachi_py.BLACK),
+                    create_agent(duplicated, duplicated.white_player_policy, pachi_py.WHITE))
         results_pd = env.play(num_games=num_games)
         wins = results_pd['black_win'].values
         ret = {'loss': 1.0 - np.mean(wins), 'status': STATUS_OK}
@@ -55,7 +55,6 @@ def evaluate(config: ModelConfig, space: Dict, num_games: int):
         logging.error(f'hpo exception: \ntb=\n{tb}\nhpo space=\n{pp.pformat(space)}')
         ret = {'loss': 1.0, 'status': STATUS_FAIL}
     result_out_file = work_dir/_trial_out_file
-    duplicated.write_to_file(work_dir/'config.yaml')
     with result_out_file.open(mode='w') as out_fd:
         yaml.dump({
             'hpo_results': ret,
@@ -70,7 +69,7 @@ def search_space_mcts():
         'mcts_c_puct': hp.choice('mcts_c_puct', [0.2]),
         'mcts_num_rollout': hp.choice('mcts_num_rollout', [1000]),
         'mcts_tao_threshold': hp.choice('mcts_tao_threshold', [7]),
-        'mcts_dirichlet_alpha': hp.choice('mcts_dirichlet_alpha', [0.0, 0.1, 0.5, 1.0, 10.0]),
+        'mcts_dirichlet_alpha': hp.choice('mcts_dirichlet_alpha', [0.0, 0.1, 0.2, 0.5, 1.0, 10.0]),
     }
 
 
