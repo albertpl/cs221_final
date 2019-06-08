@@ -5,14 +5,15 @@ weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 work_root=/tmp/test_nn_guided_mcts
-prev_path=${work_root}/start
-start_iter=1
+prev_path=${work_root}/13
+start_iter=14
 end_iter=100
 num_games=10
 train_epochs=1
 mcts_num_rollout=1000
 num_workers=1
 c_puct=2.5
+mcts_dirichlet_alpha=0.13
 
 #python ${train_program} \
 #    --model_name supervised \
@@ -32,6 +33,7 @@ do
     for w in $(seq ${num_workers})
     do
         python ${simulate_program} \
+            --mcts_dirichlet_alpha ${mcts_dirichlet_alpha} \
             --mcts_c_puct ${c_puct} \
             --mcts_num_rollout ${mcts_num_rollout} \
             --black_player_record_path ${current_path}/train/worker_${w} \

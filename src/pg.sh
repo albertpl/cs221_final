@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
 work_root=/tmp/test_pg
-start_iter=1
-end_iter=20
-prev_path=/tmp/test_pg/start/
+start_iter=101
+end_iter=100000
+prev_path=/tmp/test_pg/100/
 tensor_log_dir=/tmp/log_dir
 weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 num_games=1000
-train_epochs=2
+train_epochs=1
 
 for i in $(seq ${start_iter} ${end_iter})
 do
@@ -21,8 +21,9 @@ do
     # gathering experience via simulations
     python ${simulate_program} \
         --black_player_record_path ${current_path}/train/worker_1 \
+        --white_player_record_path ${current_path}/train/worker_1 \
         --weight_root ${current_path}  \
-        eval  nn pachi ${num_games}
+        eval  nn nn ${num_games}
     #python ${simulate_program} \
     #    --black_player_record_path ${current_path}/train/worker_2 \
     #    --weight_root ${current_path}  \
