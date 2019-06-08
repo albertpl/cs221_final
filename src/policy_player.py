@@ -58,11 +58,20 @@ class PolicyPlayer(Player):
         # first batch of the first result
         probabilities = batch_output.result[0][0]
         # restrict these two actions
+        probabilities = np.power(probabilities, 0.5)
+        if len(self.boards) < self.config.pg_noise_threshold and self.config.pg_noise_alpha > 0.0:
+            # add noise for early moves
+            probabilities = 0.75 * probabilities + \
+                            0.25 * np.random.dirichlet([self.config.pg_noise_alpha] * len(probabilities))
         probabilities[resign_action(board_size)] = 0.0
         probabilities[pass_action(board_size)] = 0.0
+        probabilities /= np.sum(probabilities)
         action = GoEnv.sample_action(self.config, state, probabilities)
         self.actions.append(action)
         self.estimated_value.append(batch_output.result[1][0])
+        if self.config.print_board > 1:
+            GoEnv.render(state)
+            print(f'{probabilities}, action={action}')
         return action
 
 

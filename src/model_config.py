@@ -27,8 +27,10 @@ class ModelConfig(object):
     mcts_num_rollout = 1000
     mcts_tao_threshold = 7  # following AGZ, before this threshold, tao=1, after, infinitesimal
     mcts_simulation_policy = ''  # default is random
-    mcts_dirichlet_alpha = 0.0  # 0.0134 = 0.03 * 19^2 / 9 ^2
+    mcts_dirichlet_alpha = 0.0  # 0.134 = 0.03 * 19^2 / 9 ^2
     mcts_set_value_for_q = 1
+    pg_noise_threshold = 7
+    pg_noise_alpha = 0.1
     # parameters for NN model
     fc1_dim = 128
     fc2_dim = 64
