@@ -1,4 +1,3 @@
-import logging
 import numpy as np
 
 
@@ -75,11 +74,17 @@ class NNGuidedMCTSPlayer(MCTSPlayer):
         node.estimated_value = batch_output.result[1][0]
         if self.config.mcts_set_value_for_q:
             node.sum_action_values = np.ones_like(node.sum_action_values) * node.estimated_value
-        priors = batch_output.result[0][0] * node.prior_probabilities
+        priors = np.where(node.prior_probabilities > 0.0, batch_output.result[0][0], 0.0)
+        if self.config.print_board > 1 and node.is_root:
+            print(batch_output.result[0][0])
+            print(node.prior_probabilities)
+            print(priors)
         if self.config.mcts_dirichlet_alpha > 0 and node.is_root:
             priors[node.legal_actions] = \
                 0.75 * priors[node.legal_actions] + \
                 0.25 * np.random.dirichlet([self.config.mcts_dirichlet_alpha] * len(node.legal_actions))
+            if self.config.print_board > 1:
+                print(priors)
         priors /= np.sum(priors+1e-8)
         node.prior_probabilities = priors
 
