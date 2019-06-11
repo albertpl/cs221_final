@@ -5,14 +5,14 @@ weight_file=checkpoint.hdf5
 simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 train_program=${HOME}/src/cs221_final/src/pipeline.py
 work_root=/tmp/test_nn_guided_mcts
-prev_path=${work_root}/13
-start_iter=14
+prev_path=${work_root}/32
+start_iter=33
 end_iter=100
 num_games=10
 train_epochs=1
 mcts_num_rollout=1000
 num_workers=1
-c_puct=2.5
+c_puct=1.0
 mcts_dirichlet_alpha=0.13
 
 #python ${train_program} \

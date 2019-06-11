@@ -6,9 +6,10 @@ simulate_program=${HOME}/src/cs221_final/src/evaluate.py
 game_result_root=${HOME}/src/tmp/game_result/
 num_games=100
 start_iter=1
-end_iter=6
+end_iter=105
+iter_step=10
 
-for i in $(seq ${start_iter} ${end_iter})
+for i in $(seq ${start_iter} ${iter_step} ${end_iter})
 do
     current_path=${work_root}/${i}/
     echo ${current_path}

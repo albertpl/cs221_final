@@ -66,6 +66,9 @@ class PolicyPlayer(Player):
         probabilities[resign_action(board_size)] = 0.0
         probabilities[pass_action(board_size)] = 0.0
         probabilities /= np.sum(probabilities)
+        if self.config.print_board > 1:
+            print(batch_output.result[0][0])
+            print(probabilities)
         action = GoEnv.sample_action(self.config, state, probabilities)
         self.actions.append(action)
         self.estimated_value.append(batch_output.result[1][0])

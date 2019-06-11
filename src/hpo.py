@@ -68,8 +68,8 @@ def search_space_mcts():
     return {
         'mcts_c_puct': hp.choice('mcts_c_puct', [0.2]),
         'mcts_num_rollout': hp.choice('mcts_num_rollout', [1000]),
-        'mcts_tao_threshold': hp.choice('mcts_tao_threshold', [7]),
-        'mcts_dirichlet_alpha': hp.choice('mcts_dirichlet_alpha', [0.0, 0.1, 0.2, 0.5, 1.0, 10.0]),
+        'mcts_tao_threshold': hp.choice('mcts_tao_threshold', [10, 20, 30]),
+        'mcts_dirichlet_alpha': hp.choice('mcts_dirichlet_alpha', [0.0, 0.1, 1.0]),
     }
 
 
