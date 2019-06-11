@@ -1,0 +1,118 @@
+\documentclass[12pt]{article}
+\usepackage{fullpage,enumitem,graphicx}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{lmodern}
+\usepackage{amssymb,amsfonts,amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{fancyhdr}
+\usepackage{physics}
+\usepackage{textcomp}
+\usepackage[table,x11names,svgnames]{xcolor}
+\usepackage{soul}
+\usepackage{parskip}
+\usepackage{multirow}
+\usepackage{array}
+% \usepackage{chngcntr}
+\usepackage{afterpage}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{tablefootnote}
+\usepackage{microtype}
+\usepackage{subcaption}
+\usepackage{verbatim}
+\usepackage[letterpaper, portrait, margin=1.0in]{geometry}
+\usepackage[linesnumbered, noline, noend]{algorithm2e}
+\SetKw{Continue}{continue}
+% \counterwithin{table}{section}
+% \counterwithin{figure}{section}
+\usepackage{mathtools}
+\usepackage[thinc]{esdiff}
+
+% Matrix related commands I collected
+\newcommand*{\matr}[1]{\textbf{#1}}
+\newcommand*{\tran}{^{\intercal}}
+\newcommand*{\conj}[1]{\overline{#1}}
+\newcommand*{\hermconj}{^{\textbf{H}}}
+\newcommand*{\inv}{^{-1}}
+\renewcommand{\thesubsection}{\thesection.\alph{subsection}}
+
+% Probability operators
+\newcommand{\E}{\mathop{\mathbb{E}}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand*{\one} {\mathbf{1}}
+\newcommand{\indicator}[1]{ \one \{ #1 \} }
+
+% Graph
+\newcommand*{\Pa}[1]{\textbf{Pa}(#1)}
+\newcommand*{\Ch}[1]{\textbf{Ch}(#1)}
+\newcommand*{\Nb}[1]{\textbf{Nb}(#1)}
+\newcommand{\Sigmoid}{\mathrm{sigmoid}}
+
+% optimization
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+%Define source code style
+\usepackage{listings}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\graphicspath{{.}}
+
+
+\begin{document}
+
+\begin{center}
+{\Large CS221 Spring 2019 Poster session peer review}
+
+\begin{tabular}{rl}
+SUNet ID: & albertpl \\
+Name: & Albert Liu \\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item  Agar.AI Reinforcement Learning
+
+   They use DQN to play Agar.io online game. They are able to analyze and iterate on their feature design. I think they know DQN and experience replay relatively well.
+
+\item
+  Deep RL with Experience Replay Trading Agent
+
+  They formulate crypto currency trading as a RL problem and apply DQN. The network architecture is 3 layer LSTM and the features are derived features from raw close price, SMA/RSI/etc. I find the way they formulate the problem very interesting.
+
+
+\item
+  Alphalone: AI Agent for Abalone
+
+  They analyzed the problem well and considered various approaches, minimax search, depth limited alphabeta pruning, move reorder, heuristics for evaluation function. Then settle on TD learning. I like the way they compare different approaches.
+
+
+
+\end{itemize}
+
+\end{document}

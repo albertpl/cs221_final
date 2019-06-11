@@ -77,23 +77,23 @@
 
 The ancient Chinese game of Go is considered the hardest classic board game and until recently it had been a grand challenge for AI. It has relatively simple rules but vast possibilities of strategies, which typically requires decades of study to master.  Recently AlphaGo \cite{silver2016mastering}, AlphaGoZero \cite{silver2017masteringalphagozero} and AlphaZero \cite{silver2017masteringalphazero}, developed by a DeepMind team, has rocked the world of AI and Go by soundly beating the best Go human players in the world.
 
-The goal of this project is to train a agent that can win games against our oracle without incorporating lots of domain knowledge of the game. We formulate Go as a turn-taking, two player, zero-sum game of perfect information. The state space is 8 recent boards of possible placements of the stones and the player who plays that turn, represented as either black stone or white stone. The state is fully observable as input. The action space is any legal position of a stone, given the current state, and a pass action. We set the reward to +1 if current player wins, -1 if loses. No reward otherwise. Figure \ref{fig:goboard} shows a concrete Go board and white stone is making a move at $P15$. 
+The goal of this project is to train a agent that can win games against our oracle without incorporating lots of domain knowledge of the game. We formulate Go as a turn-taking, two player, zero-sum game of perfect information. The state space is 8 recent boards of possible placements of the stones and the player who plays that turn, represented as either black stone or white stone. The state is fully observable as input. The action space is any legal position of a stone, given the current state, and a pass action. We set the reward to +1 if current player wins, -1 if loses. No reward otherwise. Figure \ref{fig:goboard} shows a concrete example of this game and white stone is making a move at $P15$. 
 
 Generic search methods, such as Minimax search, are intractable due to enormous search space $(\sim 10^{170})$ and large number of legal move per state$(\sim 250)$. The other challenge comes from the need for massive computational resources. For example, AlphaGoZero use 64 GPUs and 19 CPUs to play 5 millions games to achieve superhuman level \cite{silver2017masteringalphagozero}.
 
 \section{Related Work}
-Monte Carlo Tree Search (MCTS) is a common ingredient for most of recent Go programs. Browne \textit{et al.} gives a great survey on MCTS \cite{browne2012survey}. Kocsis \textit{et al.} develops Upper Confidence Tree \cite{kocsis2006bandit} algorithm by applying UCB1 \cite{auer2002finite} as tree policy, which greatly improves the state of the art for Go programs. There are various improvements. RAVE \cite{gelly2007combining} distributes the updated values of the simulation results to larger set of nodes than the sampled path from root to the leaf. And it applies AMAF \cite{bouzy2004monte} (all-move-as-first), which keep previous simulations and apply it whenever we examine the same $(s, a)$ edge and then combines it with regular simulations.
+Monte Carlo Tree Search (MCTS) is a common ingredient for recent Go programs. Browne \textit{et al.} gives a great survey on MCTS \cite{browne2012survey}. Kocsis \textit{et al.} develops Upper Confidence Tree \cite{kocsis2006bandit} algorithm by applying UCB1 \cite{auer2002finite} as tree policy, which greatly improves the state of the art for Go programs. There are various improvements. RAVE \cite{gelly2007combining} distributes the updated values of the simulation results to larger set of nodes than the sampled path from root to the leaf. And it applies AMAF \cite{bouzy2004monte} (all-move-as-first), which keep previous simulations and apply it whenever we examine the same $(s, a)$ edge and then combines it with regular simulations. We explored vanilla MCTS with light rollout and didn't engage any variations more than what is specified in \cite{silver2017masteringalphagozero}.
 
-Deep Neural Network (DNN), especially Convolutional Neural Network, has been used to predict the next move and as the basis for strong Go program, such as \cite{tian2015better} and \cite{maddison2014move}. The first Go program that defeats top professional player is AlphaGo \cite{silver2016mastering}, which combines DNN, supervised learning, MCTS and reinforcement learning. Subsequently, the same DeepMind team develops AlphaGoZero\cite{silver2017masteringalphagozero} without human data or guidance beyond the game rules, which learned exclusively through self-play reinforcement learning. Then they generalize it to more diverse game setting and build AlphaZero \cite{silver2017masteringalphazero}.
+Deep Neural Network (DNN), especially Convolutional Neural Network, has been used to predict the next move and as the basis for strong Go program, such as \cite{tian2015better} and \cite{maddison2014move}. The first Go program that defeats top professional player is AlphaGo \cite{silver2016mastering}, which combines DNN, supervised learning, MCTS and reinforcement learning. Subsequently, the same DeepMind team develops AlphaGoZero\cite{silver2017masteringalphagozero} without human data or guidance beyond the game rules, which learned exclusively through self-play reinforcement learning. Then they generalize it to more diverse game setting and build AlphaZero \cite{silver2017masteringalphazero}. Two of our approaches are based on ideas in \cite{silver2016mastering} and \cite{silver2017masteringalphagozero} but with much less computational resources, as described in \ref{sec:combined}.
 
 \section{Dataset and Environment}
 
-We collect experiences (i.e. game records) for our reinforcement learning based approaches. The standard approach is to have agents play against themselves through simulated games, i.e. self-play. We record the board position at each step,  the move, the final reward ( +1 for win and -1 for loss) and network outputs from current player's perspective. 
+We collect experiences, i.e. game records, for our reinforcement learning based approaches. The standard approach is to have agents play against themselves through simulated games, i.e. self-play. We record the board position at each step,  the move, the final reward and network outputs.
 
-As illustrated in Figure \ref{fig:env}, our simulator includes a Go gameplay engine, which is based on Pachi \cite{baudivs2011pachi}, an open source Go framework, and parts of the environment is adopted from OpenAI gym \cite{brockman2016openai}. We choose Pachi mainly because of the optimal gameplay time. For each player, the input is a 2D numpy array (e.g. $9 \times 9$), representing current board with each element encoding the color of stone, 0 for empty, 1 for black stone and 2 for white stone. The output of each player is the next move to play, which is a scalar that either represents encoded board position (e.g. 50 represents "E4") or a pass action (e.g. 81). Each player can optionally persist the game records, i.e. numpy arrays that hold the board representation, moves and etc., to disk, which are used as experiences for further reinforcement learning. We use Keras \cite{chollet2015keras} as our deep learning framework. 
+As illustrated in Figure \ref{fig:env}, our simulator includes a Go gameplay engine, which is based on Pachi \cite{baudivs2011pachi}, an open source Go framework, and parts of the environment is adopted from OpenAI gym \cite{brockman2016openai}. We choose Pachi mainly because of the optimal gameplay time. For each player, the input is a 2D numpy array (e.g. $9 \times 9$), representing current board with each element encoding the color of stone, 0 for empty, 1 for black stone and 2 for white stone. The output of each player is the next move to play, which is a scalar that either represents encoded board position (e.g. 50 represents "E4") or a pass action (e.g. 81). Each player can persist the board representation, moves and etc., to disk, which are used as experiences for further reinforcement learning. Figure \ref{fig:env} gives one concrete example on the input/output of the system. We use Keras \cite{chollet2015keras} as our deep learning framework. 
 
-\section{Methods}
-We restrict our attention to $9 \times 9$ board because of resources limitation. Minimax search or AlphaBeta pruning, however, is still intractable. Instead, we start with UCT \cite{kocsis2006bandit}. Then we will explore policy gradient based methods. Finally we will combine tree search and function approximation approach, following AlphaGoZero \cite{silver2017masteringalphagozero}.  But first, we discuss the baseline and oracle.
+\section{Approaches}
+We restrict our attention to $9 \times 9$ board to cut down computational complexity. Minimax search or AlphaBeta pruning, however, is still intractable. Instead, we start with UCT \cite{kocsis2006bandit}. Then we will explore policy gradient based methods. Finally we will combine tree search and function approximation approach, following AlphaGoZero \cite{silver2017masteringalphagozero}.  But first, we discuss the baseline and oracle.
 
 \subsection{Baseline}
 For baseline, we write a random player which selects legal move randomly, except that it won't commit suicide, i.e. filling in its own eye, which is an empty position where all adjacent positions and three out of four diagonally adjacent positions are its stones (or edges).
@@ -150,9 +150,9 @@ To increase exploration, we follow \cite{silver2017masteringalphagozero} and app
   \item
     The second term in UCB1 can be viewed as uniform priors on uncertainty. Additional Dirichlet noise can be added to it, $ (1-\epsilon) \text{Uniform}(s,a) + \epsilon \eta_a$ and $\eta \sim \text{Dirichlet}(\delta)$
   \item 
-  Instead of greedy selection after each tree search, we select the action proportionally to the visit counts for the first $\gamma$ moves of the games which allows more diverse moves at the beginning of the games. For the rest of the game, we switch back to greedy selection.
+  Instead of greedy selection after each tree search, we select the action proportionally to the visit counts for the first $\tau$ moves of the games which allows more diverse moves at the beginning of the games. For the rest of the game, we switch back to greedy selection.
 \end{itemize}
-Both $\delta, \gamma$ are considered hyperparameters for our MCTS algorithm.
+Note $c, \delta, \tau$ are considered hyperparameters for our MCTS algorithm. And we use notation $\delta=0.0$ to mean no Dirichlet noise is added.
 
 
 \subsection{REINFORCE with baseline}
@@ -194,6 +194,7 @@ The network architecture is similar to what is used in \cite{silver2017mastering
 
 
 \subsubsection{Training procedure}
+\label{sec:supervisedtraining}
 We update parameters $\theta$ and $w$ continuously through last 10 games gathered through self-play.  Let $\alpha$ be the learning rate,  $G_t$ be return. Let $s_t, a_t, r_t$ be specific training sample, representing player taking action $a_t$ at state $s_t$ and yielding final reward $r_t$.
 
 For policy function and $\theta$. The objective function is  $J(\theta) = V_{\pi_{\theta}}(S_t)$ and update rule is
@@ -209,7 +210,7 @@ $$ w_{t+1} = w_{t} + \alpha
 $$
 \subsection{Combination of tree search and DNN}
 \label{sec:combined}
-Finally we will combine MCTS and function approximation with DNN, in the same way as in \cite{silver2017masteringalphagozero}. This method can be viewed as an general form of policy iteration \cite{sutton2018reinforcement}. And we reuse the same DNN as described in \ref{sec:nn}. We repeat the following two steps until it converges
+Finally we will combine MCTS and function approximation with DNN, in the same way as in \cite{silver2017masteringalphagozero}. This method can be viewed as an general form of policy iteration \cite{sutton2018reinforcement}. And we reuse the same DNN as described in \ref{sec:nn}. On high level, we repeat the following two steps until it converges
 
 \begin{itemize}
   \item
@@ -221,7 +222,12 @@ Finally we will combine MCTS and function approximation with DNN, in the same wa
     whenever we expand a new node $s$, instead of playing out the rest of the game to estimate the value, we perform an inference over $s$ and use $v_w(s)$ as our estimation of the final reward. 
   \item
     add a prior distribution $\pi_{\theta}(a|s)$ to the uncertainty item
-$$a  \gets \argmax \{ q(s, a) + c \pi_{\theta}(a|s) \frac{\sqrt{\sum_{a'}n(s, a')}}{1 + n(s,a)} \}$$
+\begin{align}
+a  \gets 
+\argmax 
+\{ q(s, a) + c \pi_{\theta}(a|s) \frac{\sqrt{\sum_{a'}n(s, a')}}{1 + n(s,a)} \}
+\label{equ:puct}
+\end{align}
 \end{itemize}
    
 Essentially MCTS yields a better policy (than our parameterized policy function $\pi_{\theta}$) and produces a sample of state $s_t$, probability vector $p_{s_t}$ (based on visit counts after each search) and final reward $r_t$ (outcome of the game), for every move $t$ in the self play.  
@@ -236,54 +242,154 @@ Essentially MCTS yields a better policy (than our parameterized policy function 
     This is a form of policy evaluation, i.e. we ask DNN to produce policy and value estimation as close as possible to statistics from the tree search.  
 
 \end{itemize}
-The same techniques as in \ref{sec:othertechniques} can be applied to add more explorations.
 
+We make the following variations to address the computation limitations
+\begin{itemize}
+  \item
+    Bootstrap weights $\theta, w$ by supervised pre-training, using 1000 game records played between oracles and training procedures \ref{sec:supervisedtraining}.
+  \item
+    Simplify network architecture, as described in \ref{tbl:nna}, to reduce run time for inference and training.
+\end{itemize}
 
 \section{Experiments \& Error analysis}
-\subsection{DNN training setup}
-For all DNN training, we use batch size of 32 and one Nivida Titan X GPU for our training. Each batch is sampled randomly over recent self-play games.  We use Adam \cite{kingma2014adam} optimization with Cyclical Learning Rate scheduling\cite{smith2017cyclical}.
+\subsection{Setup}
+All games are on $9 \times 9$ boards. \textit{komi} is set to 0.5 to eliminate draw outcome. Evaluation results, including margin and win rate, are averaged over 100 games played between our agent and opponent, with our agent as black stone.  The margin is the final score of our agent minus opponent's final score, taking \textit{komi} into considerations. Positive margin means our agent wins the game, negative for loss.  The win rate is defined as a fraction of the number of games our agent wins over total games. 
 
-\subsection{strength of MCTS}
+All computation is done on one Linux box with one Nivida Titan X GPU.  We use Adam \cite{kingma2014adam} optimization with Cyclical Learning Rate scheduling\cite{smith2017cyclical}.  The batch size is 32.  
 
-First we want to understand how strong the plain MCTS is.  Table \ref{tbl:mcts} shows our results for MCTS approach on $9 \times 9$ board. The results are averaged over 1000 games for each opponent and configuration.  
-Like any Monte Carlo method, the accuracy for value estimation of each game state in MCTS is dependent on the number of rollouts. And therefore it is crucial to minimize the run time for each rollout. So we report median run time per game, on top of win rate (number of games MCTS wins / number of total games) and number of rollouts per move. 
+
+\subsection{MCTS}
+
+First we want to understand how strong vanilla MCTS is. Like any Monte Carlo method, the accuracy for value estimation of each game state in MCTS is dependent on the number of rollouts. And therefore it is crucial to minimize the run time for each rollout so more rollouts can be used for each move. So we report median run time per game, on top of win rate, margin and number of rollouts per move. 
 
 \begin{table}[ht]
-  \caption{Results of 1000 games between MCTS and opponents on $9 \times 9$ board, no Komi, MCTS plays first}
+  \caption{Results of MCTS v.s. opponents, $\tau=20, c=0.2, \delta=0.0$}
   \label{tbl:mcts}
   \centering
-  \begin{tabular}{c | c | c | c}
-    opponent policy    &  number of rollouts per move & win rate  & median time per game \\
+  \begin{tabular}{c | c | c | c | c}
+    opponent policy  &  number of simulations per move & win rate & margin & time per game (second) \\
     \hline
-    random            &  100 &  0.92  & 2.4 \\
-    random            &  1000 &  0.99  & 29.3 \\
-    pachi \textit{UCT} engine  &  1000 &  0.16  & 35.1 \\
+    random            &  100 &  0.87  & 10.0 & 9.7 \\
+    random            &  1000 &  1.0  & 11.5 & 94.7 \\
+    pachi \textit{UCT} engine  &  1000 & 0.03 & -24.5  & 77.7 \\
   \end{tabular}
 \end{table}
 
-We see MCTS losses most of games against pachi \textit{UCT} engine. And we speculate that reasons are
+The number of rollouts certainly increases the strength. But we see our MCTS agent losses more games against pachi \textit{UCT} engine even though it is based on tree search approach as well. We speculate that the reasons are
 \begin{itemize}
   \item
-    Rollout policy 
+    Heavy rollout policy 
 
     Unlike our MCTS, pachi entails more Go knowledge when selecting next move during the game simulation. This is called \textbf{heavy} or strong rollout policy, whereas ours is light rollout policy, i.e. no heuristics other than not filling eyes. Pachi's rule based simulation policy is handcrafted to mix in heuristics such as,  if the last move has put its own group in \textit{atari} we capture it; \textit{Nakade}a move is played inside the eyeshape to prevent the opponent from splitting it into two eyes \cite{baudivs2011pachi}.
 
   \item
-    Priors
+    Priors in expansion selection
   
     We expand a new node by randomly selecting a legal move. But Pachi apply again a set of heuristic function to this decision, equivalently adding a prior probability distribution.  Specifically it takes the progressive bias strategy \cite{gelly2007combining}, which adds virtual simulations based on the applied heuristics with decreasing weights as the nodes are explored.
 
 \end{itemize}
 
-\subsection{hyperparameters of MCTS}
-Then we evaluate effects of various hyperparameters on MCTS.
+\subsection{Exploration \& Exploitation in MCTS}
+\label{sec:ee}
+There are various hyperparameters that control our preference over exploration and exploitation. We are curious how they will influence the results.
+\begin{enumerate}
+  \item
+    After $\tau$ moves in each game, we would use search results in a greedy way. Until then, we sample proportionally to the visit counts. It appears that we can win more games by being less greedy at the beginning of the game.
+
+\begin{table}[ht]
+  \caption{Impact of $tau$, with $c=0.2, \delta=0.0$}
+  \label{tbl:mctstao}
+  \centering
+  \begin{tabular}{c | c | c | c | c}
+    &  $\tau=7$ & $\tau=13$ & $\tau=20$ & $\tau =25$ \\
+    \hline
+    win rate            & 0.0  & 0.0  & 0.03 & 0.03 \\
+    90th percentile margin & -6.5  & -6.3  & -0.5 & -3.4 \\
+  \end{tabular}
+\end{table}
+
+  \item
+    Parameter $c$ is the weight of the second term in selecting action \ref{equ:puct} during tree search. We report average win rate, maximum search depth, defined as the maximum length of the path from root node to leaf node per game and min/max search breadth, defined as the ratio of visited children nodes over all children for root node.
+\begin{table}[ht]
+  \caption{Impact of $c$, with $\tau=20, \delta=0.0$}
+  \label{tbl:mctsc}
+  \centering
+  \begin{tabular}{c | c | c | c}
+    &  $c=0.2$ & $c=0.6$ & $c=1.0$ \\
+    \hline
+    win rate            &  0.03 & 0.01 & 0.0    \\
+    max search depth    & 49.5  & 23.0 & 15   \\
+    min search breadth  & 0.48  & 1.0  & 1.0     \\
+  \end{tabular}
+\end{table}
+We see that a bigger $c$ value gives higher score to unexplored move and therefore greatly increases the search breadth $(\sim 100\%)$, at the cost of shallow search though $(> 50\%)$. And it turns out that the search depth is more important for our MCTS.
+
+\end{enumerate}
+
 
 \subsection{REINFORCE with baseline}
-Next we run experiments with our policy gradient based methods. Each training batch is sampled randomly from recent 100 games of self-play.
+Next we run experiments with our policy gradient based methods. Each training batch is sampled randomly from recent 100 games of self-play and then we train one epoch for each iteration. We evaluate every 10 iterations and report the results. 
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{.5\textwidth}
+\centering
+\includegraphics[width=0.9\linewidth]{pgwinrate}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+\centering
+\centering
+\includegraphics[width=0.9\linewidth]{pgmargin}
+\end{subfigure}
+\caption{REINFORCE with baseline: 100 iterations self-play/training}
+\label{fig:pgwinrate}
+\end{figure}
+
+It appears that the learning is not making too much progress. The average margins various between $-30$ and $-80$ but doesn't show a clear trend. Further investigates show that the DNN output converges to almost deterministic policy, especially for early moves. This is detrimental to the learning as we are not exploring enough. We believe it converges too early to some less desirable local minimum.
 
 
 \subsection{Combination of search and DNN}
-Last we test the approach that combines MCTS and DNN, as we described in \ref{sec:combined}. Each training batch is sampled randomly from recent 10 games of self-play with 1000 MCTS simulations per move.
+Last we test the approach that combines MCTS and DNN, as we described in \ref{sec:combined}. Each training batch is sampled randomly from recent 10 games of self-play with 1000 MCTS simulations per move. We train one epoch in each iteration. Then we evaluate results by playing against our oracle and report results in Figure \ref{fig:nnguidedresult}.
+
+\begin{figure}[ht]
+\centering
+\begin{subfigure}{.5\textwidth}
+\centering
+\includegraphics[width=0.9\linewidth]{nnguidedwinrate}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+\centering
+\centering
+\includegraphics[width=0.9\linewidth]{nnguidedmargin}
+\end{subfigure}
+\caption{combination of search and DNN with 30 iterations self-play/training}
+\label{fig:nnguidedresult}
+\end{figure}
+
+It appears to win significantly more games than vanilla MCTS or policy gradient based approach after 8 iterations. We are then curious what contributes to the improvement.
+
+
+\begin{table}[ht]
+  \caption{Tree search statistics with and without DNN}
+  \label{tbl:mctsvsnnguided}
+  \centering
+  \begin{tabular}{c | c | c | c | c | c }
+    & win rate  & margin & number of plys & max search depth  & min search breadth \\
+    \hline
+    without DNN & 0.03 & -24.5  &  77 & 49.5 &  0.48 \\
+    without     & 0.17 & -1.5   &  34 &  9   & 0.26 \\
+  \end{tabular}
+\end{table}
+
+We see in Table \ref{tbl:mctsvsnnguided} that with the use of DNN predictions, the search is much more shallow (9 v.s. 49.5), probably due to much shorter game. And the search explores less moves for each root (0.26 v.s. 0.48).  And the win rate and margin significantly improved. We speculate the search efficiency improves significantly, i.e. we select more promising move at each search step. One indirect evidence is it takes much less ($\sim 50\%$) plys on average to complete the game, which occurs when large territory of stones are captured and therefore the board is cleared. This matches our observation when we watched sample games played between our agent and oracle.
+
+The reason for the quality improvements could be more accurate priors (than uniform priors in vanilla MCTS) when we expand a new node, therefore it can focus on moves more, instead uniformly exploring all moves.
+
+\section{Conclusion \& Future Work}
+We explored MCTS, REINFORCE with baseline and the DNN guided tree search on the game of Go.  The DNN guided tree search, based on \cite{silver2017masteringalphazero} with some minor variations, yields best result. The next step is to scale up to reach optimal results. 
+It is not trivial to combine MCTS and DNN effectively. Tree search typically runs much faster than DNN inference and some parallelism is required to reach the optimal throughput.  And we have to greatly increase our efficiency and/or engage more powerful computational resources. For example, we could apply virtual loss technique \cite{chaslot2008parallel}.
+
+Also we could use more advanced hyperparameter optimization approach, such Tree Parzen Estimator \cite{bergstra2011algorithms} \cite{bergstra2013making}, to select the best set of parameters. As we show in \ref{sec:ee}, they can have significant impacts on the game results.
 
 \subsection*{Source codes}
     The source codes are hosted at \url{https://github.com/albertpl/cs221_final}.
